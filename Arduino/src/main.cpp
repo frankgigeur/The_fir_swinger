@@ -22,6 +22,9 @@
 
 #define MOTOR_PIN_PWM   5
 #define MOTOR_PIN_DIR   30
+
+#define ENCODER_SLAVE_PIN  34
+#define ENCODER_FLAG_PIN  A14
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -38,6 +41,8 @@ volatile bool isInPulse_ = false;   // drapeau pour effectuer un pulse
 
 SoftTimer timerSendMsg_;            // chronometre d'envoie de messages
 SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
+LS7366Counter encoder_;             // encodeur
+
 
 uint16_t pulseTime_ = 0;            // temps dun pulse en ms
 float pulsePWM_ = 0;                // Amplitude de la tension au moteur [-1,1]
@@ -107,12 +112,13 @@ void setup() {
   state = INITIALISATION;
   moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
   digitalWrite(MAGPIN, HIGH);
+  encoder_.init(ENCODER_SLAVE_PIN, ENCODER_FLAG_PIN);
 }
 
 /* Boucle principale (infinie)*/
 void loop() {
-
- while (1)
+  Serial.println(encoder_.read());
+/* while (1)
     {
       
       cptr += 0.1;
@@ -123,20 +129,23 @@ void loop() {
       cmd = sin(cptr);
       moteur.setSpeed(cmd);
       delay(20);
-    }
+    }*/
 
   switch (state)
   {
   case INITIALISATION :
-   
-    
+    digitalWrite(MAGPIN, LOW);
+    state = CALIBRATION;
    /* if ()
     {
       state = CALIBRATION;
     } */
     break;
   case CALIBRATION :
-
+    moteur.setSpeed(-0.20);
+    delay(1000);
+    moteur.setSpeed(0);
+    state = PRISE_SAPIN;
     /*if (<3)
     {
       state = PRISE_SAPIN;
