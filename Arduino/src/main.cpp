@@ -48,14 +48,16 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 
 typedef enum state_e {
-init,
-calibration,
-prise_sapin,
-oscillation,
-go_to,
-drop,
-retour
+INITIAISATION,
+CALIBRATION,
+PRISE_SAPIN,
+OSCILLATION,
+GO_TO,
+DROP,
+RETOUR
 } state_t;
+
+ state_t state;
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
@@ -98,10 +100,69 @@ void setup() {
   pid_.setAtGoalFunc(PIDgoalReached);
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
+
+  state = init;
 }
 
 /* Boucle principale (infinie)*/
 void loop() {
+
+  switch (state)
+  {
+  case INITIAISATION :
+
+    if (/*<3*/)
+    {
+      state = CALIBRATION;
+    } 
+    break;
+  case CALIBRATION :
+
+    if (/*<3*/)
+    {
+      state = PRISE_SAPIN;
+    }
+    break;
+  case PRISE_SAPIN :
+
+    if (/*<3*/)
+    {
+      state = OSCILLATION;
+    }
+    break;
+  case OSCILLATION :
+
+
+    if (/*<3*/)
+    {
+      state = GO_TO;
+    }
+    break;
+    case GO_TO :
+
+    if (/*<3*/)
+    {
+      state = DROP;
+    }
+    break;
+  case DROP :
+
+    if (/*<3*/)
+    {
+      state = RETOUR;
+    }
+    break;
+  case RETOUR :
+
+    if (/*<3*/)
+    {
+      state = INITIAISATION;
+    }
+    break;
+  default:
+    state = INITIAISATION;
+    break;
+  }
 
   if(shouldRead_){
     readMsg();
