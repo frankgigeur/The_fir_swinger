@@ -112,9 +112,9 @@ void loop() {
  while (1)
     {
       moteur.setSpeed(1);
-      delay(200);
+      delay(700);
       moteur.setSpeed(-1);
-      delay(200);
+      delay(700);
     }
 
   switch (state)
