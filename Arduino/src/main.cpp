@@ -8,7 +8,6 @@
 /*------------------------------ Librairies ---------------------------------*/
 #include <LibS3GRO.h>
 #include <ArduinoJson.h>
-#include <moteur.h>
 #include <libExample.h> // Vos propres librairies
 /*------------------------------ Constantes ---------------------------------*/
 
