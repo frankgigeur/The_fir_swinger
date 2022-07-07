@@ -20,7 +20,8 @@
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
 
-#define MOTEUR1 0
+#define MOTOR_PIN_PWM   5
+#define MOTOR_PIN_DIR   30
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -28,7 +29,7 @@ MegaServo servo_;                   // objet servomoteur
 VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
 PID pid_;                           // objet PID
-//Moteur moteur;
+MotorControl moteur;
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
@@ -102,15 +103,25 @@ void setup() {
   pid_.setPeriod(200);
 
   state = INITIALISATION;
+  moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
 }
 
 /* Boucle principale (infinie)*/
 void loop() {
 
+ while (1)
+    {
+      moteur.setSpeed(1);
+      delay(200);
+      moteur.setSpeed(-1);
+      delay(200);
+    }
+
   switch (state)
   {
   case INITIALISATION :
-
+   
+    
    /* if ()
     {
       state = CALIBRATION;
@@ -159,7 +170,7 @@ void loop() {
       state = INITIAISATION;
     }*/
     break;
-    
+
   default:
     state = INITIALISATION;
     break;
