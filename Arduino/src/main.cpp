@@ -1,14 +1,15 @@
 /* 
  * GRO 302 - Conception d'un robot mobile
- * Code de démarrage
- * Auteurs: Jean-Samuel Lauzon     
- * date: 1 mai 2019
+ * Code de démarrage Template
+ * Auteurs: Etienne Gendron     
+ * date: Juin 2022
 */
 
 /*------------------------------ Librairies ---------------------------------*/
+#include <ArduinoJson.h> // librairie de syntaxe JSON
+#include <SPI.h> // librairie Communication SPI
 #include <LibS3GRO.h>
-#include <ArduinoJson.h>
-#include <libExample.h> // Vos propres librairies
+
 /*------------------------------ Constantes ---------------------------------*/
 
 #define BAUD            115200      // Frequence de transmission serielle
@@ -20,11 +21,6 @@
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
 
-#define MOTOR_PIN_PWM   5
-#define MOTOR_PIN_DIR   30
-
-#define ENCODER_SLAVE_PIN  34
-#define ENCODER_FLAG_PIN  A14
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -32,57 +28,40 @@ MegaServo servo_;                   // objet servomoteur
 VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
 PID pid_;                           // objet PID
-MotorControl moteur;
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
-volatile bool shouldPulse_ = false; // drapeau pour effectuer un pulse
-volatile bool isInPulse_ = false;   // drapeau pour effectuer un pulse
+
+int Direction_ = 0;                 // drapeau pour indiquer la direction du robot
+volatile bool RunForward_ = false;  // drapeau pret à rouler en avant
+volatile bool stop_ = false;        // drapeau pour arrêt du robot
+volatile bool RunReverse_ = false;  // drapeau pret à rouler en arrière
 
 SoftTimer timerSendMsg_;            // chronometre d'envoie de messages
 SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
-LS7366Counter encoder_;             // encodeur
-
 
 uint16_t pulseTime_ = 0;            // temps dun pulse en ms
-float pulsePWM_ = 0;                // Amplitude de la tension au moteur [-1,1]
-float cptr = 0;
-double cmd = 0;
+float PWM_des_ = 0;                 // PWM desire pour les moteurs
+
 
 float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
-
-typedef enum state_e {
-INITIALISATION,
-CALIBRATION,
-PRISE_SAPIN,
-OSCILLATION,
-GO_TO,
-DROP,
-RETOUR
-} state_t;
-
- state_t state;
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
-void startPulse();
-void endPulse();
+void forward();
+void stop();
+void reverse();
 void sendMsg(); 
 void readMsg();
 void serialEvent();
-
-// Fonctions pour le PID
-double PIDmeasurement();
-void PIDcommand(double cmd);
-void PIDgoalReached();
+void runsequence();
 
 /*---------------------------- fonctions "Main" -----------------------------*/
 
 void setup() {
-  pinMode(MAGPIN,OUTPUT);
   Serial.begin(BAUD);               // initialisation de la communication serielle
   AX_.init();                       // initialisation de la carte ArduinoX 
   imu_.init();                      // initialisation de la centrale inertielle
@@ -90,108 +69,20 @@ void setup() {
   // attache de l'interruption pour encodeur vex
   attachInterrupt(vexEncoder_.getPinInt(), []{vexEncoder_.isr();}, FALLING);
   
-  //moteur.init(AX_,MOTEUR1);
-
   // Chronometre envoie message
   timerSendMsg_.setDelay(UPDATE_PERIODE);
   timerSendMsg_.setCallback(timerCallback);
   timerSendMsg_.enable();
-
-  // Chronometre duration pulse
-  timerPulse_.setCallback(endPulse);
   
   // Initialisation du PID
   pid_.setGains(0.25,0.1 ,0);
   // Attache des fonctions de retour
-  pid_.setMeasurementFunc(PIDmeasurement);
-  pid_.setCommandFunc(PIDcommand);
-  pid_.setAtGoalFunc(PIDgoalReached);
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
-
-  state = INITIALISATION;
-  moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
-  digitalWrite(MAGPIN, HIGH);
-  encoder_.init(ENCODER_SLAVE_PIN, ENCODER_FLAG_PIN);
 }
-
+  
 /* Boucle principale (infinie)*/
 void loop() {
-  Serial.println(encoder_.read());
-/* while (1)
-    {
-      
-      cptr += 0.1;
-      if (cptr > 2*PI)
-      {
-        cptr = 0;
-      }
-      cmd = sin(cptr);
-      moteur.setSpeed(cmd);
-      delay(20);
-    }*/
-
-  switch (state)
-  {
-  case INITIALISATION :
-    digitalWrite(MAGPIN, LOW);
-    state = CALIBRATION;
-   /* if ()
-    {
-      state = CALIBRATION;
-    } */
-    break;
-  case CALIBRATION :
-    moteur.setSpeed(-0.20);
-    delay(1000);
-    moteur.setSpeed(0);
-    state = PRISE_SAPIN;
-    /*if (<3)
-    {
-      state = PRISE_SAPIN;
-    }*/
-    break;
-  case PRISE_SAPIN :
-
-    /*if (<3)
-    {
-      state = OSCILLATION;
-    }*/
-    break;
-  case OSCILLATION :
-
-
-   /* if (<3)
-    {
-      state = GO_TO;
-    }*/
-    break;
-    case GO_TO :
-
-    /*if (<3)
-    {
-      state = DROP;
-    }*/
-    break;
-  case DROP :
-
-   /*if (<3)
-    {
-      state = RETOUR;
-    }*/
-    break;
-  case RETOUR :
-
-    /*if (<3)
-    {
-      state = INITIAISATION;
-    }*/
-    break;
-
-  default:
-    state = INITIALISATION;
-    break;
-  }
 
   if(shouldRead_){
     readMsg();
@@ -199,9 +90,7 @@ void loop() {
   if(shouldSend_){
     sendMsg();
   }
-  if(shouldPulse_){
-    startPulse();
-  }
+  
 
   // mise a jour des chronometres
   timerSendMsg_.update();
@@ -217,25 +106,26 @@ void serialEvent(){shouldRead_ = true;}
 
 void timerCallback(){shouldSend_ = true;}
 
-void startPulse(){
-  /* Demarrage d'un pulse */
-  timerPulse_.setDelay(pulseTime_);
-  timerPulse_.enable();
-  timerPulse_.setRepetition(1);
-  AX_.setMotorPWM(0, pulsePWM_);
-  AX_.setMotorPWM(1, pulsePWM_);
-  shouldPulse_ = false;
-  isInPulse_ = true;
+void forward(){
+  /* Faire rouler le robot vers l'avant à une vitesse désirée */
+  AX_.setMotorPWM(0, PWM_des_);
+  AX_.setMotorPWM(1, PWM_des_);
+  Direction_ = 1;
 }
 
-void endPulse(){
-  /* Rappel du chronometre */
+void stop(){
+  /* Stopper le robot */
   AX_.setMotorPWM(0,0);
   AX_.setMotorPWM(1,0);
-  timerPulse_.disable();
-  isInPulse_ = false;
+  Direction_ = 0;
 }
 
+void reverse(){
+  /* Faire rouler le robot vers l'arrière à une vitesse désirée */
+  AX_.setMotorPWM(0, -PWM_des_);
+  AX_.setMotorPWM(1, -PWM_des_);
+  Direction_ = -1;
+}
 void sendMsg(){
   /* Envoit du message Json sur le port seriel */
   StaticJsonDocument<500> doc;
@@ -245,12 +135,10 @@ void sendMsg(){
   doc["potVex"] = analogRead(POTPIN);
   doc["encVex"] = vexEncoder_.getCount();
   doc["goal"] = pid_.getGoal();
-  doc["measurements"] = PIDmeasurement();
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent(); 
-  doc["pulsePWM"] = pulsePWM_;
-  doc["pulseTime"] = pulseTime_;
-  doc["inPulse"] = isInPulse_;
+  doc["PWM_des"] = PWM_des_;
+  doc["Etat_robot"] = Direction_;
   doc["accelX"] = imu_.getAccelX();
   doc["accelY"] = imu_.getAccelY();
   doc["accelZ"] = imu_.getAccelZ();
@@ -284,20 +172,16 @@ void readMsg(){
   }
   
   // Analyse des éléments du message message
-  parse_msg = doc["pulsePWM"];
+  parse_msg = doc["PWM_des"];
   if(!parse_msg.isNull()){
-     pulsePWM_ = doc["pulsePWM"].as<float>();
+     PWM_des_ = doc["pulsePWM"].as<float>();
   }
 
-  parse_msg = doc["pulseTime"];
+   parse_msg = doc["RunForward"];
   if(!parse_msg.isNull()){
-     pulseTime_ = doc["pulseTime"].as<float>();
+     RunForward_ = doc["RunForward"];
   }
 
-  parse_msg = doc["pulse"];
-  if(!parse_msg.isNull()){
-     shouldPulse_ = doc["pulse"];
-  }
   parse_msg = doc["setGoal"];
   if(!parse_msg.isNull()){
     pid_.disable();
@@ -308,14 +192,18 @@ void readMsg(){
   }
 }
 
+void runSequence(){
+/*Exemple de fonction pour faire bouger le robot en avant et en arrière.*/
 
-// Fonctions pour le PID
-double PIDmeasurement(){
-  // To do
-}
-void PIDcommand(double cmd){
-  // To do
-}
-void PIDgoalReached(){
-  // To do
+  if(RunForward_){
+    forward();
+  }
+
+  if(stop_){
+    forward();
+  }
+  if(RunReverse_){
+    reverse();
+  }
+
 }
