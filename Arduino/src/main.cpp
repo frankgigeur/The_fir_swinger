@@ -48,7 +48,7 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 
 typedef enum state_e {
-INITIAISATION,
+INITIALISATION,
 CALIBRATION,
 PRISE_SAPIN,
 OSCILLATION,
@@ -101,7 +101,7 @@ void setup() {
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
 
-  state = INITIAISATION;
+  state = INITIALISATION;
 }
 
 /* Boucle principale (infinie)*/
@@ -109,7 +109,7 @@ void loop() {
 
   switch (state)
   {
-  case INITIAISATION :
+  case INITIALISATION :
 
    /* if ()
     {
@@ -160,7 +160,7 @@ void loop() {
     }*/
     break;
   default:
-    state = INITIAISATION;
+    state = INITIALISATION;
     break;
   }
 
