@@ -21,6 +21,12 @@
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
 
+#define MOTOR_PIN_PWM   5
+#define MOTOR_PIN_DIR   30
+
+#define ENCODER_SLAVE_PIN  34
+#define ENCODER_FLAG_PIN  A14
+
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -48,6 +54,24 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
+MotorControl moteur;
+LS7366Counter encoder_; 
+const float m_pulse = ((2*PI*0.065)/64);
+const float un_tour = (2*PI*0.065);
+
+typedef enum state_e {
+INITIALISATION,
+CALIBRATION,
+PRISE_SAPIN,
+AVANCE,
+ARRET,
+GO_TO,
+DROP,
+RETOUR
+} state_t;
+
+ state_t state;
+
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
@@ -58,6 +82,8 @@ void sendMsg();
 void readMsg();
 void serialEvent();
 void runsequence();
+void activePrehenseur();
+void deactivePrehenseur();
 
 /*---------------------------- fonctions "Main" -----------------------------*/
 
@@ -79,11 +105,92 @@ void setup() {
   // Attache des fonctions de retour
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
+  state = INITIALISATION;
+  moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
+  encoder_.init(ENCODER_SLAVE_PIN, ENCODER_FLAG_PIN);
+  activePrehenseur();
+  delay(3000);
 }
   
 /* Boucle principale (infinie)*/
 void loop() {
+  //Serial.println(analogRead(POTPIN));
+  switch (state)
+  {
+  case INITIALISATION :
+    state = CALIBRATION;
+   /* if ()
+    {
+      state = CALIBRATION;
+    } */
+    break;
+  case CALIBRATION :
+    moteur.setSpeed(-0.25);
+    delay(1000);
+    state = PRISE_SAPIN;
+    /*if (<3)
+    {
+      state = PRISE_SAPIN;
+    }*/
+    break;
+  case PRISE_SAPIN :
+    moteur.setSpeed(0);
+    encoder_.reset();
+    state = AVANCE;
+    delay(10);
+    /*if (<3)
+    {
+      state = AVANCE;
+    }*/
+    break;
+  case AVANCE :
+    moteur.setSpeed(1);
+    if ((encoder_.read()) > 1216)
+    {
+      state = ARRET;
+    }
+    break;
+    case ARRET :
+    Serial.println(encoder_.read());
+    moteur.setSpeed(-1);
+    encoder_.reset();
+    delay(400);  
+    state = GO_TO;
+   /* if (<3)
+    {
+      state = GO_TO;
+    }*/
+    break;
+    case GO_TO :
+    moteur.setSpeed(1);
+    if ((encoder_.read()) > 1216)
+    {
+      state = DROP;
+    }   
+    /*if (<3)
+    {
+      state = DROP;
+    }*/
+    break;
+  case DROP :
+    moteur.setSpeed(0);
+   /*if (<3)
+    {
+      state = RETOUR;
+    }*/
+    break;
+  case RETOUR :
 
+    /*if (<3)
+    {
+      state = INITIAISATION;
+    }*/
+    break;
+
+   /* default:
+    state = INITIALISATION;
+    break;*/
+  }
   if(shouldRead_){
     readMsg();
   }
@@ -132,7 +239,7 @@ void sendMsg(){
   // Elements du message
 
   doc["time"] = millis();
-  doc["potVex"] = analogRead(POTPIN);
+  doc["potVex"] = map(analogRead(POTPIN), 77, 950, -85, 85);
   doc["encVex"] = vexEncoder_.getCount();
   doc["goal"] = pid_.getGoal();
   doc["voltage"] = AX_.getVoltage();
@@ -206,4 +313,14 @@ void runSequence(){
     reverse();
   }
 
+}
+
+void activePrehenseur()
+{
+  digitalWrite(MAGPIN, HIGH);
+}
+
+void deactivePrehenseur()
+{
+  digitalWrite(MAGPIN, LOW);
 }
