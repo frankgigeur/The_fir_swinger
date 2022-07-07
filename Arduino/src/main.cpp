@@ -8,7 +8,6 @@
 /*------------------------------ Librairies ---------------------------------*/
 #include <LibS3GRO.h>
 #include <ArduinoJson.h>
-#include <moteur.h>
 #include <libExample.h> // Vos propres librairies
 /*------------------------------ Constantes ---------------------------------*/
 
@@ -21,7 +20,8 @@
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
 
-#define MOTEUR1 0
+#define MOTOR_PIN_PWM   5
+#define MOTOR_PIN_DIR   30
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -29,7 +29,7 @@ MegaServo servo_;                   // objet servomoteur
 VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
 PID pid_;                           // objet PID
-//Moteur moteur;
+MotorControl moteur;
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
@@ -47,6 +47,18 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
+
+typedef enum state_e {
+INITIALISATION,
+CALIBRATION,
+PRISE_SAPIN,
+OSCILLATION,
+GO_TO,
+DROP,
+RETOUR
+} state_t;
+
+ state_t state;
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
@@ -89,10 +101,80 @@ void setup() {
   pid_.setAtGoalFunc(PIDgoalReached);
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
+
+  state = INITIALISATION;
+  moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
 }
 
 /* Boucle principale (infinie)*/
 void loop() {
+
+ while (1)
+    {
+      moteur.setSpeed(1);
+      delay(700);
+      moteur.setSpeed(-1);
+      delay(700);
+    }
+
+  switch (state)
+  {
+  case INITIALISATION :
+   
+    
+   /* if ()
+    {
+      state = CALIBRATION;
+    } */
+    break;
+  case CALIBRATION :
+
+    /*if (<3)
+    {
+      state = PRISE_SAPIN;
+    }*/
+    break;
+  case PRISE_SAPIN :
+
+    /*if (<3)
+    {
+      state = OSCILLATION;
+    }*/
+    break;
+  case OSCILLATION :
+
+
+   /* if (<3)
+    {
+      state = GO_TO;
+    }*/
+    break;
+    case GO_TO :
+
+    /*if (<3)
+    {
+      state = DROP;
+    }*/
+    break;
+  case DROP :
+
+   /*if (<3)
+    {
+      state = RETOUR;
+    }*/
+    break;
+  case RETOUR :
+
+    /*if (<3)
+    {
+      state = INITIAISATION;
+    }*/
+    break;
+
+  default:
+    state = INITIALISATION;
+    break;
+  }
 
   if(shouldRead_){
     readMsg();
