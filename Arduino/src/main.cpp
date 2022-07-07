@@ -41,7 +41,8 @@ SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
 
 uint16_t pulseTime_ = 0;            // temps dun pulse en ms
 float pulsePWM_ = 0;                // Amplitude de la tension au moteur [-1,1]
-
+float cptr = 0;
+double cmd = 0;
 
 float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
@@ -76,6 +77,7 @@ void PIDgoalReached();
 /*---------------------------- fonctions "Main" -----------------------------*/
 
 void setup() {
+  pinMode(MAGPIN,OUTPUT);
   Serial.begin(BAUD);               // initialisation de la communication serielle
   AX_.init();                       // initialisation de la carte ArduinoX 
   imu_.init();                      // initialisation de la centrale inertielle
@@ -104,6 +106,7 @@ void setup() {
 
   state = INITIALISATION;
   moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
+  digitalWrite(MAGPIN, HIGH);
 }
 
 /* Boucle principale (infinie)*/
@@ -111,10 +114,15 @@ void loop() {
 
  while (1)
     {
-      moteur.setSpeed(1);
-      delay(700);
-      moteur.setSpeed(-1);
-      delay(700);
+      
+      cptr += 0.1;
+      if (cptr > 2*PI)
+      {
+        cptr = 0;
+      }
+      cmd = sin(cptr);
+      moteur.setSpeed(cmd);
+      delay(20);
     }
 
   switch (state)
