@@ -218,8 +218,14 @@ void MainWindow::manageRecording(int stateButton){
 
 void MainWindow::startRecording(){
     // Fonction SLOT pour creation d'un nouveau fichier csv
+    QString name = qgetenv("USER");
+    if(name.isEmpty())
+    {
+        name = qgetenv("USERNAME");
+    }
+    QString path = "/home/" + name + "/Desktop/";
     record = true;
-    writer_ = new CsvWriter("/home/pi/Desktop/");
+    writer_ = new CsvWriter(path);
     ui->label_pathCSV->setText(writer_->folder+writer_->filename);
 }
 
