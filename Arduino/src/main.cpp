@@ -101,7 +101,7 @@ void setup() {
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
 
-  state = init;
+  state = INITIAISATION;
 }
 
 /* Boucle principale (infinie)*/
@@ -111,53 +111,53 @@ void loop() {
   {
   case INITIAISATION :
 
-    if (/*<3*/)
+   /* if ()
     {
       state = CALIBRATION;
-    } 
+    } */
     break;
   case CALIBRATION :
 
-    if (/*<3*/)
+    /*if (<3)
     {
       state = PRISE_SAPIN;
-    }
+    }*/
     break;
   case PRISE_SAPIN :
 
-    if (/*<3*/)
+    /*if (<3)
     {
       state = OSCILLATION;
-    }
+    }*/
     break;
   case OSCILLATION :
 
 
-    if (/*<3*/)
+   /* if (<3)
     {
       state = GO_TO;
-    }
+    }*/
     break;
     case GO_TO :
 
-    if (/*<3*/)
+    /*if (<3)
     {
       state = DROP;
-    }
+    }*/
     break;
   case DROP :
 
-    if (/*<3*/)
+   /*if (<3)
     {
       state = RETOUR;
-    }
+    }*/
     break;
   case RETOUR :
 
-    if (/*<3*/)
+    /*if (<3)
     {
       state = INITIAISATION;
-    }
+    }*/
     break;
   default:
     state = INITIAISATION;
