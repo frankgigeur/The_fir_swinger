@@ -8,7 +8,6 @@
 /*------------------------------ Librairies ---------------------------------*/
 #include <LibS3GRO.h>
 #include <ArduinoJson.h>
-#include <moteur.h>
 #include <libExample.h> // Vos propres librairies
 /*------------------------------ Constantes ---------------------------------*/
 
@@ -47,6 +46,16 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
+
+typedef enum state_e {
+init,
+calibration,
+prise_sapin,
+oscillation,
+go_to,
+drop,
+retour
+} state_t;
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
