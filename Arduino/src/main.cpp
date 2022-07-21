@@ -56,8 +56,6 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 MotorControl moteur;
 LS7366Counter encoder_; 
-const float m_pulse = ((2*PI*0.065)/64);
-const float un_tour = (2*PI*0.065);
 
 typedef enum state_e {
 INITIALISATION,
@@ -75,9 +73,6 @@ RETOUR
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
-void forward();
-void stop();
-void reverse();
 void sendMsg(); 
 void readMsg();
 void serialEvent();
@@ -167,13 +162,9 @@ void loop() {
     {
       state = DROP;
     }   
-    /*if (<3)
-    {
-      state = DROP;
-    }*/
     break;
   case DROP :
-    moteur.setSpeed(0);
+    
    /*if (<3)
     {
       state = RETOUR;
@@ -213,26 +204,7 @@ void serialEvent(){shouldRead_ = true;}
 
 void timerCallback(){shouldSend_ = true;}
 
-void forward(){
-  /* Faire rouler le robot vers l'avant à une vitesse désirée */
-  AX_.setMotorPWM(0, PWM_des_);
-  AX_.setMotorPWM(1, PWM_des_);
-  Direction_ = 1;
-}
 
-void stop(){
-  /* Stopper le robot */
-  AX_.setMotorPWM(0,0);
-  AX_.setMotorPWM(1,0);
-  Direction_ = 0;
-}
-
-void reverse(){
-  /* Faire rouler le robot vers l'arrière à une vitesse désirée */
-  AX_.setMotorPWM(0, -PWM_des_);
-  AX_.setMotorPWM(1, -PWM_des_);
-  Direction_ = -1;
-}
 void sendMsg(){
   /* Envoit du message Json sur le port seriel */
   StaticJsonDocument<500> doc;
