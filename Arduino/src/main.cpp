@@ -18,9 +18,6 @@
 #define MAGPIN          32          // Port numerique pour electroaimant
 #define POTPIN          A5          // Port analogique pour le potentiometre
 
-#define PASPARTOUR      64          // Nombre de pas par tour du moteur
-#define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
-
 #define MOTOR_PIN_PWM   5
 #define MOTOR_PIN_DIR   30
 
@@ -33,6 +30,9 @@
 
 #define POS_CIBLE 0.90
 #define POS_DROP 1.20
+
+#define PIN_LIMITSWITCH 8
+#define PIN_SAPIN 9
 
 /*---------------------------- variables globales ---------------------------*/
 
@@ -59,7 +59,9 @@ MotorControl moteur;
 LS7366Counter encoder_; 
 
 float potValue = 0;
+float lastPotValue = 0;
 float posValue = 0;
+float vitesseAng = 0;
 
 typedef enum state_e {
 INITIALISATION,
@@ -75,6 +77,8 @@ RETOUR
  state_t state;
 
 float cmdVitesse = -0.25;
+unsigned long lastTimeMili = 0;
+
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
@@ -114,27 +118,28 @@ void loop() {
   {
   case INITIALISATION :
     state = CALIBRATION;
-    if (/*limit switch*/)
+   /* if ()
     {
       cmdVitesse = -0.25;
       state = CALIBRATION;
-    } 
+    } */
     break;
   case CALIBRATION :
     moteur.setSpeed(cmdVitesse);
     delay(1000);
     state = PRISE_SAPIN;
-    /*if ( limite switch )
+    if ( digitalRead(PIN_LIMITSWITCH) )
     {
       cmdVitesse = 0;
       state = PRISE_SAPIN;
-    }*/
+    }
     break;
   case PRISE_SAPIN :
-    moteur.setSpeed(/*cmdVitesse*/0);
+    moteur.setSpeed(cmdVitesse);
     encoder_.reset();
+    if ( digitalRead(PIN_SAPIN) )
     state = GO_TO;
-    delay(10);
+    
     break;
     case GO_TO :
     moteur.setSpeed(1);
@@ -152,7 +157,11 @@ void loop() {
     }   
     break;
     case STABILISATION :
-    
+    potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
+
+
+    lastPotValue = potValue;
+    lastTimeMili = millis();  
    /*if (<3)
     {
       state = DROP;
@@ -209,21 +218,17 @@ void sendMsg(){
   // Elements du message
 
   doc["time"] = millis();
-  doc["potVex"] = map(analogRead(POTPIN), 77, 950, -85, 85);
-  doc["encVex"] = vexEncoder_.getCount();
-  doc["goal"] = pid_.getGoal();
+  doc["potVex"] = potValue;
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent(); 
-  doc["PWM_des"] = PWM_des_;
-  doc["Etat_robot"] = Direction_;
-  doc["accelX"] = imu_.getAccelX();
-  doc["accelY"] = imu_.getAccelY();
-  doc["accelZ"] = imu_.getAccelZ();
-  doc["gyroX"] = imu_.getGyroX();
-  doc["gyroY"] = imu_.getGyroY();
-  doc["gyroZ"] = imu_.getGyroZ();
-  doc["isGoal"] = pid_.isAtGoal();
-  doc["actualTime"] = pid_.getActualDt();
+
+  /*
+  doc["vitesse"]
+  doc["position"]
+  doc["cmdVitesse"]
+  */
+
+
 
   // Serialisation
   serializeJson(doc, Serial);
@@ -254,19 +259,6 @@ void readMsg(){
      PWM_des_ = doc["pulsePWM"].as<float>();
   }
 
-   parse_msg = doc["RunForward"];
-  if(!parse_msg.isNull()){
-     RunForward_ = doc["RunForward"];
-  }
-
-  parse_msg = doc["setGoal"];
-  if(!parse_msg.isNull()){
-    pid_.disable();
-    pid_.setGains(doc["setGoal"][0], doc["setGoal"][1], doc["setGoal"][2]);
-    pid_.setEpsilon(doc["setGoal"][3]);
-    pid_.setGoal(doc["setGoal"][4]);
-    pid_.enable();
-  }
 }
 
 void activePrehenseur()
