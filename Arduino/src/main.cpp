@@ -1,7 +1,7 @@
 /* 
  * GRO 302 - Conception d'un robot mobile
  * Code de démarrage Template
- * Auteurs: Etienne Gendron     
+ * Auteurs: Charles Ouellet 
  * date: Juin 2022
 */
 
