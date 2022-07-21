@@ -166,11 +166,13 @@ void loop() {
     case STABILISATION :
     potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
     vitesseAng = (potValue-lastPotValue)/((millis()-lastTimeMili)/1000);
+
     lastPotValue = potValue;
-    lastTimeMili = millis();  
+    lastTimeMili = millis(); 
+
     cmdVitesse = potValue/85;
     moteur.setSpeed(cmdVitesse);
-    if (vitesseAng <= RANGE_VITESSE_ANG_MAX && vitesseAng >= RANGE_VITESSE_ANG_MIN)
+    if (vitesseAng <= RANGE_VITESSE_ANG_MAX && vitesseAng >= RANGE_VITESSE_ANG_MIN) // doit avoir une position aussi!!
     {
       state = DROP;
       cmdVitesse = 0;
@@ -232,13 +234,10 @@ void sendMsg(){
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent(); 
 
-
-  doc["vitesse"] = deltaP;
+  //doc["vitesse"] = deltaP;
   doc["position"] = posValue;
   doc["cmdVitesse"] =cmdVitesse;
-  doc["Consommation"] = consommation;
-
-  
+  //doc["Consommation"] = consommation;
 
 
 
