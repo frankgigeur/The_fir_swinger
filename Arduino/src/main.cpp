@@ -27,6 +27,10 @@
 #define ENCODER_SLAVE_PIN  34
 #define ENCODER_FLAG_PIN  A14
 
+#define PASPARTOUR 64
+#define RAPPORTVITESSE 19
+#define RAYONROUE 0.065
+
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -56,8 +60,14 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 MotorControl moteur;
 LS7366Counter encoder_; 
-const float m_pulse = ((2*PI*0.065)/64);
-const float un_tour = (2*PI*0.065);
+
+const float m_pulse = ( (2*PI*RAYONROUE) / PASPARTOUR );
+const float un_tour = ( 2*PI*RAYONROUE );
+
+static double position = 0;
+static double command = 0;
+static double speed = 0;
+static double lastDt = 0;
 
 typedef enum state_e {
 INITIALISATION,
@@ -312,6 +322,35 @@ void runSequence(){
   if(RunReverse_){
     reverse();
   }
+
+}
+
+// Fonctions pour le PID
+
+double PIDmeasurement() {
+
+  double Dt = millis() - lastDt;
+
+  double deltaP = ((double)(AX_.readEncoder(1) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
+  position += deltaP;
+
+  AX_.resetEncoder(1);
+
+  speed = deltaP / (Dt / 1000);
+  lastDt = millis();
+
+  return speed;
+}
+
+void PIDcommand(double cmd) {
+
+  AX_.setMotorPWM(1, cmd);
+  command = cmd;
+}
+
+void PIDgoalReached() {
+
+  AX_.buzzerOn();
 
 }
 
