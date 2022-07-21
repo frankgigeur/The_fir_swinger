@@ -244,8 +244,8 @@ void sendMsg(){
   // Serialisation
   serializeJson(doc, Serial);
   // Envoit
-  Serial.println();
-  shouldSend_ = false;
+  Serial.println("test");
+  shouldSend_ = true;
 }
 
 void readMsg(){
