@@ -31,6 +31,10 @@
 #define RAPPORTVITESSE 19
 #define RAYONROUE 0.065
 
+#define POS_CIBLE 0.90
+#define POS_DROP 1.20
+#define 
+
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
@@ -56,20 +60,22 @@ MotorControl moteur;
 LS7366Counter encoder_; 
 
 float potValue = 0;
-float position = 0;
+float posValue = 0;
 
 typedef enum state_e {
 INITIALISATION,
 CALIBRATION,
 PRISE_SAPIN,
-AVANCE,
-ARRET,
 GO_TO,
+DECELERATION,
+STABILISATION,
 DROP,
 RETOUR
 } state_t;
 
  state_t state;
+
+float cmdVitesse = -0.25;
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
@@ -109,54 +115,49 @@ void loop() {
   {
   case INITIALISATION :
     state = CALIBRATION;
-   /* if ()
+    if (/*limit switch*/)
     {
+      cmdVitesse = -0.25;
       state = CALIBRATION;
-    } */
+    } 
     break;
   case CALIBRATION :
-    moteur.setSpeed(-0.25);
+    moteur.setSpeed(cmdVitesse);
     delay(1000);
     state = PRISE_SAPIN;
-    /*if (<3)
+    /*if ( limite switch )
     {
+      cmdVitesse = 0;
       state = PRISE_SAPIN;
     }*/
     break;
   case PRISE_SAPIN :
-    moteur.setSpeed(0);
+    moteur.setSpeed(/*cmdVitesse*/0);
     encoder_.reset();
-    state = AVANCE;
-    delay(10);
-    /*if (<3)
-    {
-      state = AVANCE;
-    }*/
-    break;
-  case AVANCE :
-    moteur.setSpeed(1);
-    if ((encoder_.read()) > 1216)
-    {
-      state = ARRET;
-    }
-    break;
-    case ARRET :
-    Serial.println(encoder_.read());
-    moteur.setSpeed(-1);
-    encoder_.reset();
-    delay(400);  
     state = GO_TO;
-   /* if (<3)
-    {
-      state = GO_TO;
-    }*/
+    delay(10);
     break;
     case GO_TO :
     moteur.setSpeed(1);
-    if ((encoder_.read()) > 1216)
+    if ( (posValue) >= POS_CIBLE )
+    {
+      state = DECELERATION;
+    }   
+    break;
+    case DECELERATION :
+    cmdVitesse -= 0.01;
+    moteur.setSpeed(cmdVitesse);
+    if ( (posValue) >= POS_DROP )
+    {
+      state = STABILISATION;
+    }   
+    break;
+    case STABILISATION :
+    
+   /*if (<3)
     {
       state = DROP;
-    }   
+    }*/
     break;
   case DROP :
     
@@ -189,8 +190,8 @@ void loop() {
   timerSendMsg_.update();
   timerPulse_.update();
 
-  double deltaP = ((double)(AX_.readEncoder(1) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
-  position += deltaP;
+  double deltaP = ((double)(AX_.readResetEncoder(1) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
+  posValue += deltaP;
   potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
 
 
