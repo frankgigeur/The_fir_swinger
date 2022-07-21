@@ -132,8 +132,6 @@ void loop() {
     break;
   case CALIBRATION :
     moteur.setSpeed(cmdVitesse);
-    delay(1000);
-    state = PRISE_SAPIN;
     if ( digitalRead(PIN_LIMITSWITCH) )
     {
       activePrehenseur();
