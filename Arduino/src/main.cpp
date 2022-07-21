@@ -110,7 +110,9 @@ void setup() {
   state = INITIALISATION;
   moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
   encoder_.init(ENCODER_SLAVE_PIN, ENCODER_FLAG_PIN);
-  activePrehenseur();
+
+
+
   delay(3000);
 }
   
@@ -133,6 +135,7 @@ void loop() {
     state = PRISE_SAPIN;
     if ( digitalRead(PIN_LIMITSWITCH) )
     {
+      activePrehenseur();
       cmdVitesse = 0;
       state = PRISE_SAPIN;
     }
@@ -164,13 +167,17 @@ void loop() {
     vitesseAng = (potValue-lastPotValue)/((millis()-lastTimeMili)/1000);
     lastPotValue = potValue;
     lastTimeMili = millis();  
+    cmdVitesse = potValue/85;
+    moteur.setSpeed(cmdVitesse);
     if (vitesseAng <= RANGE_VITESSE_ANG_MAX && vitesseAng >= RANGE_VITESSE_ANG_MIN)
     {
       state = DROP;
-    }*/
+      cmdVitesse = 0;
+      moteur.setSpeed(cmdVitesse);
+    }
     break;
   case DROP :
-    
+    deactivePrehenseur();
    /*if (<3)
     {
       state = RETOUR;
