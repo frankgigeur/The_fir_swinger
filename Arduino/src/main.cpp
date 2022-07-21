@@ -123,6 +123,7 @@ void loop() {
   switch (state)
   {
   case INITIALISATION :
+    if ( digitalRead(PIN_SAPIN) )
     state = CALIBRATION;
    /* if ()
     {
@@ -268,16 +269,6 @@ void readMsg(){
      PWM_des_ = doc["pulse_des"].as<float>();
   }
 
-  parse_msg = doc["time"];
-  if(!parse_msg.isNull()){
-     milis();
-  }
-
-  parse_msg = doc["potVex"];
-  if(!parse_msg.isNull()){
-     potVex = doc["potVex"].as<float>();
-  }
-
   parse_msg = doc["voltage"];
   if(!parse_msg.isNull()){
      AX_.getVoltage();
@@ -286,11 +277,6 @@ void readMsg(){
   parse_msg = doc["current"];
   if(!parse_msg.isNull()){
      AX_.getCurrent();
-  }
-
-  parse_msg = doc["vitesse"];
-  if(!parse_msg.isNull()){
-     deltaP = doc["vitesse"].as<float>();
   }
 
   parse_msg = doc["position"];
@@ -303,10 +289,6 @@ void readMsg(){
      cmdVitesse = doc["cmdVitesse"].as<float>();
   }
 
-  parse_msg = doc["Consommation"];
-  if(!parse_msg.isNull()){
-     consommation = doc["Comsommation"].as<float>();
-  }
 }
 
 void activePrehenseur()
