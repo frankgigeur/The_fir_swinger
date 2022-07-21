@@ -28,10 +28,10 @@
 #define RAPPORTVITESSE 19
 #define RAYONROUE 0.065
 
-#define POS_CIBLE 0.90
-#define POS_DROP 1.20
+#define POS_CIBLE 0.4
+#define POS_DROP 0.6
 
-#define PIN_LIMITSWITCH 8
+#define PIN_LIMITSWITCH 10
 #define PIN_SAPIN 9
 #define RANGE_VITESSE_ANG_MAX  0.008
 #define RANGE_VITESSE_ANG_MIN -0.008
@@ -80,7 +80,7 @@ RETOUR
 
  state_t state;
 
-float cmdVitesse = -0.25;
+float cmdVitesse = -0.10;
 unsigned long lastTimeMili = 0;
 
 
@@ -123,7 +123,6 @@ void loop() {
   switch (state)
   {
   case INITIALISATION :
-    if ( digitalRead(PIN_SAPIN) )
     state = CALIBRATION;
    /* if ()
     {
@@ -133,7 +132,7 @@ void loop() {
     break;
   case CALIBRATION :
     moteur.setSpeed(cmdVitesse);
-    if ( digitalRead(PIN_LIMITSWITCH) )
+    if ( digitalRead(PIN_LIMITSWITCH) == HIGH )
     {
       activePrehenseur();
       cmdVitesse = 0;
@@ -143,6 +142,7 @@ void loop() {
   case PRISE_SAPIN :
     moteur.setSpeed(cmdVitesse);
     encoder_.reset();
+    posValue = 0;
     if ( digitalRead(PIN_SAPIN) )
     state = GO_TO;
     
@@ -163,7 +163,6 @@ void loop() {
     }   
     break;
     case STABILISATION :
-    potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
     vitesseAng = (potValue-lastPotValue)/((millis()-lastTimeMili)/1000);
 
     lastPotValue = potValue;
@@ -209,9 +208,13 @@ void loop() {
   timerSendMsg_.update();
   timerPulse_.update();
 
-  double deltaP = ((double)(AX_.readResetEncoder(1) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
+  double deltaP = -1*((double)(AX_.readResetEncoder(0) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
   posValue += deltaP;
-  potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
+
+  potValue = map(analogRead(POTPIN), 170, 850, -85, 85);
+
+  Serial.print("CMD: ");
+  Serial.println(cmdVitesse);
 
 
 }
