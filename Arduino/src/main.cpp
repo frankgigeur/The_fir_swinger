@@ -1,7 +1,7 @@
 /* 
  * GRO 302 - Conception d'un robot mobile
  * Code de démarrage Template
- * Auteurs: Charles Ouellet 
+ * Auteurs: Nick à place de Charles 
  * date: Juin 2022
 */
 
