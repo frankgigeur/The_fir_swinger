@@ -52,6 +52,7 @@ SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
 
 uint16_t pulseTime_ = 0;            // temps dun pulse en ms
 float PWM_des_ = 0;                 // PWM desire pour les moteurs
+float comsommation = AX_.getVoltage() * AX_.getCurrent() * millis(); //consommation = Power* temps
 
 
 float Axyz[3];                      // tableau pour accelerometre
@@ -231,11 +232,13 @@ void sendMsg(){
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent(); 
 
-  /*
-  doc["vitesse"]
-  doc["position"]
-  doc["cmdVitesse"]
-  */
+
+  doc["vitesse"] = deltaP;
+  doc["position"] = posValue;
+  doc["cmdVitesse"] =cmdVitesse;
+  doc["Consommation"] = consommation;
+
+  
 
 
 
@@ -265,9 +268,48 @@ void readMsg(){
   // Analyse des éléments du message message
   parse_msg = doc["PWM_des"];
   if(!parse_msg.isNull()){
-     PWM_des_ = doc["pulsePWM"].as<float>();
+     PWM_des_ = doc["pulse_des"].as<float>();
   }
 
+  parse_msg = doc["time"];
+  if(!parse_msg.isNull()){
+     milis();
+  }
+
+  parse_msg = doc["potVex"];
+  if(!parse_msg.isNull()){
+     potVex = doc["potVex"].as<float>();
+  }
+
+  parse_msg = doc["voltage"];
+  if(!parse_msg.isNull()){
+     AX_.getVoltage();
+  }
+
+  parse_msg = doc["current"];
+  if(!parse_msg.isNull()){
+     AX_.getCurrent();
+  }
+
+  parse_msg = doc["vitesse"];
+  if(!parse_msg.isNull()){
+     deltaP = doc["vitesse"].as<float>();
+  }
+
+  parse_msg = doc["position"];
+  if(!parse_msg.isNull()){
+     posValue = doc["position"].as<float>();
+  }
+
+  parse_msg = doc["cmdVitesse"];
+  if(!parse_msg.isNull()){
+     cmdVitesse = doc["cmdVitesse"].as<float>();
+  }
+
+  parse_msg = doc["Consommation"];
+  if(!parse_msg.isNull()){
+     consommation = doc["Comsommation"].as<float>();
+  }
 }
 
 void activePrehenseur()
