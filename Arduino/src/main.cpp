@@ -27,21 +27,19 @@
 #define ENCODER_SLAVE_PIN  34
 #define ENCODER_FLAG_PIN  A14
 
+#define PASPARTOUR 64
+#define RAPPORTVITESSE 19
+#define RAYONROUE 0.065
+
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
 MegaServo servo_;                   // objet servomoteur
 VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
-PID pid_;                           // objet PID
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
-
-int Direction_ = 0;                 // drapeau pour indiquer la direction du robot
-volatile bool RunForward_ = false;  // drapeau pret à rouler en avant
-volatile bool stop_ = false;        // drapeau pour arrêt du robot
-volatile bool RunReverse_ = false;  // drapeau pret à rouler en arrière
 
 SoftTimer timerSendMsg_;            // chronometre d'envoie de messages
 SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
@@ -56,6 +54,9 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 MotorControl moteur;
 LS7366Counter encoder_; 
+
+float potValue = 0;
+float position = 0;
 
 typedef enum state_e {
 INITIALISATION,
@@ -76,7 +77,6 @@ void timerCallback();
 void sendMsg(); 
 void readMsg();
 void serialEvent();
-void runsequence();
 void activePrehenseur();
 void deactivePrehenseur();
 
@@ -95,11 +95,6 @@ void setup() {
   timerSendMsg_.setCallback(timerCallback);
   timerSendMsg_.enable();
   
-  // Initialisation du PID
-  pid_.setGains(0.25,0.1 ,0);
-  // Attache des fonctions de retour
-  pid_.setEpsilon(0.001);
-  pid_.setPeriod(200);
   state = INITIALISATION;
   moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
   encoder_.init(ENCODER_SLAVE_PIN, ENCODER_FLAG_PIN);
@@ -193,9 +188,12 @@ void loop() {
   // mise a jour des chronometres
   timerSendMsg_.update();
   timerPulse_.update();
-  
-  // mise à jour du PID
-  pid_.run();
+
+  double deltaP = ((double)(AX_.readEncoder(1) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
+  position += deltaP;
+  potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
+
+
 }
 
 /*---------------------------Definition de fonctions ------------------------*/
@@ -269,22 +267,6 @@ void readMsg(){
     pid_.setGoal(doc["setGoal"][4]);
     pid_.enable();
   }
-}
-
-void runSequence(){
-/*Exemple de fonction pour faire bouger le robot en avant et en arrière.*/
-
-  if(RunForward_){
-    forward();
-  }
-
-  if(stop_){
-    forward();
-  }
-  if(RunReverse_){
-    reverse();
-  }
-
 }
 
 void activePrehenseur()
