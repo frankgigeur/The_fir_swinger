@@ -2,7 +2,7 @@
  * GRO 302 - Conception d'un robot mobile
  * Code de démarrage Template
  * Auteurs: Nick à place de Charles 
- * date: Juin 2022
+ * date: Juin 2022 c
 */
 
 /*------------------------------ Librairies ---------------------------------*/
@@ -33,7 +33,6 @@
 
 #define POS_CIBLE 0.90
 #define POS_DROP 1.20
-#define 
 
 /*---------------------------- variables globales ---------------------------*/
 
