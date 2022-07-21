@@ -1,3 +1,5 @@
 build*/**
 Qt/identification.pro.user
 Qt/*.o
+
+Arduino/downloadedLibraries/megaatmega2560/
