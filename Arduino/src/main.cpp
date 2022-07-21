@@ -33,6 +33,9 @@
 
 #define PIN_LIMITSWITCH 8
 #define PIN_SAPIN 9
+#define RANGE_VITESSE_ANG_MAX  0.008
+#define RANGE_VITESSE_ANG_MIN -0.008
+
 
 /*---------------------------- variables globales ---------------------------*/
 
@@ -158,11 +161,10 @@ void loop() {
     break;
     case STABILISATION :
     potValue = map(analogRead(POTPIN), 77, 950, -85, 85);
-
-
+    vitesseAng = (potValue-lastPotValue)/((millis()-lastTimeMili)/1000);
     lastPotValue = potValue;
     lastTimeMili = millis();  
-   /*if (<3)
+    if (vitesseAng <= RANGE_VITESSE_ANG_MAX && vitesseAng >= RANGE_VITESSE_ANG_MIN)
     {
       state = DROP;
     }*/
