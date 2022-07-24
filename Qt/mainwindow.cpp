@@ -9,6 +9,14 @@ MainWindow::MainWindow(int updateRate, QWidget *parent):
     ui = new Ui::MainWindow;
     ui->setupUi(this);
 
+    /*
+    QMenuBar *mb = menuBar();
+    mb->addMenu("file");
+    this->setMenuBar(mb);
+    */
+    accueil = parent;
+
+
     // Initialisation du graphique
     ui->graph->setChart(&chart_);
     chart_.setTitle("Donnees brutes");
@@ -27,6 +35,7 @@ MainWindow::MainWindow(int updateRate, QWidget *parent):
 
     // initialisation du timer
     updateTimer_.start();
+
 }
 
 MainWindow::~MainWindow(){
@@ -35,7 +44,7 @@ MainWindow::~MainWindow(){
     if(serialCom_!=nullptr){
       delete serialCom_;
     }
-    delete ui;
+    delete ui;    
 }
 
 void MainWindow::closeEvent(QCloseEvent *event){
@@ -52,11 +61,11 @@ void MainWindow::receiveFromSerial(QString msg){
     if(msgBuffer_.endsWith('\n')){
         // Passage ASCII vers structure Json
         QJsonDocument jsonResponse = QJsonDocument::fromJson(msgBuffer_.toUtf8());
-
         // Analyse du message Json
-        if(~jsonResponse.isEmpty()){
-            QJsonObject jsonObj = jsonResponse.object();
+        if(!jsonResponse.isEmpty()){
+            QJsonObject jsonObj = jsonResponse.object();            
             QString buff = jsonResponse.toJson(QJsonDocument::Indented);
+            emit jsonEmit(jsonObj);
 
             // Affichage des messages Json
             ui->textBrowser->setText(buff.mid(2,buff.length()-4));
@@ -101,6 +110,7 @@ void MainWindow::connectButtons(){
     connect(ui->pulseButton, SIGNAL(clicked()), this, SLOT(sendPulseStart()));
     connect(ui->checkBox, SIGNAL(stateChanged(int)), this, SLOT(manageRecording(int)));
     connect(ui->pushButton_Params, SIGNAL(clicked()), this, SLOT(sendPID()));
+    connect(ui->pbWtf, &QPushButton::clicked,this,[this](){emit reOpen();});
 }
 
 void MainWindow::connectSpinBoxes(){
@@ -115,16 +125,20 @@ void MainWindow::connectTextInputs(){
     JsonKey_ = ui->JsonKey->text();
 }
 
-void MainWindow::connectComboBox(){
+void MainWindow::connectComboBox(QComboBox *cbUsed){
     // Fonction de connection des entrees deroulantes
-    connect(ui->comboBoxPort, SIGNAL(activated(QString)), this, SLOT(startSerialCom(QString)));
+    if (cbUsed == nullptr)
+        cbUsed = ui->comboBoxPort;
+    connect(cbUsed, SIGNAL(activated(QString)), this, SLOT(startSerialCom(QString)));
 }
 
-void MainWindow::portCensus(){
+void MainWindow::portCensus(QComboBox *cbUsed){
     // Fonction pour recenser les ports disponibles
-    ui->comboBoxPort->clear();
+    if (cbUsed == nullptr)
+        cbUsed = ui->comboBoxPort;
+    cbUsed->clear();
     Q_FOREACH(QSerialPortInfo port, QSerialPortInfo::availablePorts()) {
-        ui->comboBoxPort->addItem(port.portName());
+        cbUsed->addItem(port.portName());
     }
 }
 
@@ -234,13 +248,16 @@ void MainWindow::stopRecording(){
     record = false;
     delete writer_;
 }
+
 void MainWindow::onMessageReceived(QString msg){
     // Fonction appelee lors de reception de message
     // Decommenter la ligne suivante pour deverminage
-    // qDebug().noquote() << "Message du Arduino: " << msg;
+    qDebug().noquote() << "Message du Arduino: " << msg;
 }
 
 void MainWindow::onPeriodicUpdate(){
     // Fonction SLOT appelee a intervalle definie dans le constructeur
     qDebug().noquote() << "*";
 }
+
+
