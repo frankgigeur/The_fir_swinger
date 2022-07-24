@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QJsonObject>
+#include <QJsonDocument>
 #include <QString>
 #include <QTime>
 #include <QElapsedTimer>
@@ -25,6 +26,9 @@ private slots:
     void on_cbConnect_activated(int index);
     void jsonReceived(QJsonObject json);
     void notConnected();
+    void envoyerMsg(QString msg, bool etat);
+    void actionStart();
+    void actionStop();
 
 private:
     void connectButtons();
@@ -40,7 +44,8 @@ private:
     QFont timerFont;
 
     bool run = false;
-
+    double sumPower = 0;
+    long prvTime = 0;
 
 signals:
     void testSend(QString msg);

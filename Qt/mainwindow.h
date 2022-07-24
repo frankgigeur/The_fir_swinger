@@ -77,12 +77,15 @@ private:
     QLineSeries series_;
     QChart chart_;
 
+    QWidget *accueil;
+
 
 protected:
     Ui::MainWindow *ui;
 
 signals:
     void jsonEmit(QJsonObject json);
+    void reOpen();
 
 };
 

@@ -14,6 +14,8 @@ MainWindow::MainWindow(int updateRate, QWidget *parent):
     mb->addMenu("file");
     this->setMenuBar(mb);
     */
+    accueil = parent;
+
 
     // Initialisation du graphique
     ui->graph->setChart(&chart_);
@@ -42,7 +44,7 @@ MainWindow::~MainWindow(){
     if(serialCom_!=nullptr){
       delete serialCom_;
     }
-    delete ui;
+    delete ui;    
 }
 
 void MainWindow::closeEvent(QCloseEvent *event){
@@ -108,6 +110,7 @@ void MainWindow::connectButtons(){
     connect(ui->pulseButton, SIGNAL(clicked()), this, SLOT(sendPulseStart()));
     connect(ui->checkBox, SIGNAL(stateChanged(int)), this, SLOT(manageRecording(int)));
     connect(ui->pushButton_Params, SIGNAL(clicked()), this, SLOT(sendPID()));
+    connect(ui->pbWtf, &QPushButton::clicked,this,[this](){emit reOpen();});
 }
 
 void MainWindow::connectSpinBoxes(){
@@ -249,10 +252,12 @@ void MainWindow::stopRecording(){
 void MainWindow::onMessageReceived(QString msg){
     // Fonction appelee lors de reception de message
     // Decommenter la ligne suivante pour deverminage
-    // qDebug().noquote() << "Message du Arduino: " << msg;
+    qDebug().noquote() << "Message du Arduino: " << msg;
 }
 
 void MainWindow::onPeriodicUpdate(){
     // Fonction SLOT appelee a intervalle definie dans le constructeur
     qDebug().noquote() << "*";
 }
+
+

@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    int delayMs = 1000;
+
     QApplication a(argc, argv);
     //MainWindow w(delayMs);
     Accueil w;

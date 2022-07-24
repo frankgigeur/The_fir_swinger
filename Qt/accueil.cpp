@@ -10,6 +10,7 @@ Accueil::Accueil(QWidget *parent) :
     mw = new MainWindow(1000);
     mw->portCensus(ui->cbConnect);
     ui->pbStatus->setEnabled(false);
+    this->setFixedSize(QSize(450, 320));
 
     timerFont.setPointSize(12);
     startTime.setHMS(0,0,0);
@@ -17,10 +18,17 @@ Accueil::Accueil(QWidget *parent) :
     ui->lbTemps->setFont(timerFont);
     ui->lbTemps->setAlignment(Qt::AlignCenter);
 
+    // Disable PB at startup
+    ui->pbOriginal->setEnabled(false);
+    ui->pbCalibrer->setEnabled(false);
+    ui->pbStart->setEnabled(false);
+    ui->pbStop->setEnabled(false);
+    ui->pbTest->setEnabled(false);
 
 
     lostConnectionTimer = new QTimer(this);
     connect(mw,SIGNAL(jsonEmit(QJsonObject)),this,SLOT(jsonReceived(QJsonObject)));
+    connect(mw,&MainWindow::reOpen,this,[this](){this->show();});
 
     connectButtons();
     connectTimers();
@@ -45,19 +53,52 @@ void Accueil::on_cbConnect_activated(int index)
 void Accueil::jsonReceived(QJsonObject json)
 {
     connected();
-    qDebug() << json["voltage"].toDouble();
+    double power = json["current"].toDouble() * json["voltage"].toDouble();
+    long actualTime = json["time"].toDouble();
+    if(prvTime > 0)
+        sumPower += (power * actualTime) - (power * prvTime);
+    prvTime = actualTime;
+    ui->lbWh->setText(QString::number(sumPower/3600));
+
+
+    if(json["state"].toString() == "CALIBRATION")
+    {
+        ui->pbCalibrer->setEnabled(true);
+        ui->pbStart->setEnabled(false);
+        ui->pbStop->setEnabled(false);
+    }
+    else if(json["state"].toString() == "PRISE_SAPIN")
+    {
+        ui->pbCalibrer->setEnabled(false);
+
+        if(!run)
+        {
+            ui->pbStart->setEnabled(true);
+        }
+        else
+        {
+            ui->pbStart->setEnabled(false);
+        }
+
+        ui->pbStop->setEnabled(true);
+    }
+    else
+    {
+        ui->pbCalibrer->setEnabled(false);
+        ui->pbStart->setEnabled(false);
+        ui->pbStop->setEnabled(true);
+    }
+
+
 
 }
 
 void Accueil::connectButtons()
 {
     connect(ui->pbOriginal,&QPushButton::clicked,this,&Accueil::originalWindow);
-
-    connect(ui->pbStart,&QPushButton::clicked,[this](){
-        startTime = QTime::currentTime();
-        run = true;
-    });
-    connect(ui->pbStop,&QPushButton::clicked,[this](){run = false;});
+    connect(ui->pbStart,&QPushButton::clicked,this,&Accueil::actionStart);
+    connect(ui->pbStop,&QPushButton::clicked,this,&Accueil::actionStop);
+    connect(ui->pbCalibrer,&QPushButton::clicked,this,[this](){envoyerMsg("calibrer",true);});
 }
 
 void Accueil::connectTimers()
@@ -77,7 +118,12 @@ void Accueil::connected()
     if(run)
     {
         QTime tempTime(0,0,0);
-        elapseTime = tempTime.addMSecs(QTime::currentTime().msecsSinceStartOfDay() - startTime.msecsSinceStartOfDay());
+        int runningTime = QTime::currentTime().msecsSinceStartOfDay() - startTime.msecsSinceStartOfDay();
+
+        if(runningTime >= 10000)
+            actionStop();
+
+        elapseTime = tempTime.addMSecs(runningTime);
         ui->lbTemps->setText(elapseTime.toString("mm:ss.zzz"));
         ui->lbTemps->setFont(timerFont);
         ui->lbTemps->setAlignment(Qt::AlignCenter);
@@ -89,6 +135,36 @@ void Accueil::notConnected()
 {
     lostConnectionTimer->stop();
     ui->pbStatus->setStyleSheet("background-color: rgb(204,2,2);");
-    ui->pbOriginal->setEnabled(false);
+}
+
+
+void Accueil::envoyerMsg(QString msg, bool etat)
+{
+    QJsonObject jsonObject
+    {
+        {msg, etat}
+    };
+    QJsonDocument doc(jsonObject);
+    QString strJson(doc.toJson(QJsonDocument::Compact));
+    qDebug() << strJson;
+    mw->sendMessage(strJson);
+}
+
+void Accueil::actionStart()
+{
+    startTime = QTime::currentTime();
+    run = true;
+    envoyerMsg("run",run);
+}
+
+void Accueil::actionStop()
+{
+    run = false;
+    envoyerMsg("run",run);
+    envoyerMsg("reInit",true);
+    startTime.setHMS(0,0,0);
+    ui->lbTemps->setText(startTime.toString("mm:ss.zzz"));
+    ui->lbTemps->setFont(timerFont);
+    ui->lbTemps->setAlignment(Qt::AlignCenter);
 }
 
