@@ -1,3 +1,0 @@
-[submodule "LibS3GRO"] 
-  path = Arduino/downloadedLibraries/megaatmega2560/LibS3GRO 
-  url = git://github.com/UdeS-GRO/LibS3GRO.git
