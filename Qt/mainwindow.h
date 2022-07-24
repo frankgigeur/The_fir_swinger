@@ -35,11 +35,18 @@ public:
     virtual ~MainWindow() override;
     void closeEvent(QCloseEvent *event) override;
 
-    void sendMessage(QString msg);
+    //void sendMessage(QString msg);
     void setUpdateRate(int rateMs);
 
     void onPeriodicUpdate();
     void onMessageReceived(QString);
+
+    void portCensus(QComboBox *cbUsed = nullptr);
+    void connectComboBox(QComboBox *cbUsed = nullptr);
+    QTimer updateTimer_;
+
+public slots:
+    void sendMessage(QString msg);
 
 private slots:
     void receiveFromSerial(QString);
@@ -58,12 +65,10 @@ private:
     void startRecording();
     void stopRecording();
     void connectTextInputs();
-    void connectComboBox();
-    void portCensus();
 
     bool record = false;
     CsvWriter* writer_;
-    QTimer updateTimer_;
+    //QTimer updateTimer_;
     QString msgReceived_{""};
     QString msgBuffer_{""};
     SerialProtocol* serialCom_=nullptr;
@@ -75,6 +80,10 @@ private:
 
 protected:
     Ui::MainWindow *ui;
+
+signals:
+    void jsonEmit(QJsonObject json);
+
 };
 
 #endif // MAINWINDOW_H

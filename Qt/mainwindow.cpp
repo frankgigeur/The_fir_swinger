@@ -1,5 +1,5 @@
 #include "mainwindow.h"
-#include  "ui_mainwindow.h"
+#include "ui_mainwindow.h"
 
 MainWindow::MainWindow(int updateRate, QWidget *parent):
     QMainWindow(parent)
@@ -8,6 +8,12 @@ MainWindow::MainWindow(int updateRate, QWidget *parent):
     // Initialisation du UI
     ui = new Ui::MainWindow;
     ui->setupUi(this);
+
+    /*
+    QMenuBar *mb = menuBar();
+    mb->addMenu("file");
+    this->setMenuBar(mb);
+    */
 
     // Initialisation du graphique
     ui->graph->setChart(&chart_);
@@ -27,6 +33,7 @@ MainWindow::MainWindow(int updateRate, QWidget *parent):
 
     // initialisation du timer
     updateTimer_.start();
+
 }
 
 MainWindow::~MainWindow(){
@@ -52,11 +59,11 @@ void MainWindow::receiveFromSerial(QString msg){
     if(msgBuffer_.endsWith('\n')){
         // Passage ASCII vers structure Json
         QJsonDocument jsonResponse = QJsonDocument::fromJson(msgBuffer_.toUtf8());
-
         // Analyse du message Json
-        if(~jsonResponse.isEmpty()){
-            QJsonObject jsonObj = jsonResponse.object();
+        if(!jsonResponse.isEmpty()){
+            QJsonObject jsonObj = jsonResponse.object();            
             QString buff = jsonResponse.toJson(QJsonDocument::Indented);
+            emit jsonEmit(jsonObj);
 
             // Affichage des messages Json
             ui->textBrowser->setText(buff.mid(2,buff.length()-4));
@@ -115,16 +122,20 @@ void MainWindow::connectTextInputs(){
     JsonKey_ = ui->JsonKey->text();
 }
 
-void MainWindow::connectComboBox(){
+void MainWindow::connectComboBox(QComboBox *cbUsed){
     // Fonction de connection des entrees deroulantes
-    connect(ui->comboBoxPort, SIGNAL(activated(QString)), this, SLOT(startSerialCom(QString)));
+    if (cbUsed == nullptr)
+        cbUsed = ui->comboBoxPort;
+    connect(cbUsed, SIGNAL(activated(QString)), this, SLOT(startSerialCom(QString)));
 }
 
-void MainWindow::portCensus(){
+void MainWindow::portCensus(QComboBox *cbUsed){
     // Fonction pour recenser les ports disponibles
-    ui->comboBoxPort->clear();
+    if (cbUsed == nullptr)
+        cbUsed = ui->comboBoxPort;
+    cbUsed->clear();
     Q_FOREACH(QSerialPortInfo port, QSerialPortInfo::availablePorts()) {
-        ui->comboBoxPort->addItem(port.portName());
+        cbUsed->addItem(port.portName());
     }
 }
 
@@ -234,6 +245,7 @@ void MainWindow::stopRecording(){
     record = false;
     delete writer_;
 }
+
 void MainWindow::onMessageReceived(QString msg){
     // Fonction appelee lors de reception de message
     // Decommenter la ligne suivante pour deverminage
