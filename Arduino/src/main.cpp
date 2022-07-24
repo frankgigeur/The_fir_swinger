@@ -155,6 +155,7 @@ void loop()
       {
         activePrehenseur();
         cmdVitesse = 0;
+        moteur.setSpeed(cmdVitesse);
         state = PRISE_SAPIN;
       }
     }
@@ -162,14 +163,13 @@ void loop()
   case PRISE_SAPIN:
     sprintf(strState,"PRISE_SAPIN");
     calibrationOn = false;
-    if(run)
-      cmdVitesse = 0.2;
-    moteur.setSpeed(cmdVitesse);
     encoder_.reset();
     posValue = 0;
-    if (digitalRead(PIN_SAPIN))
+    if (run)
+     {
+      run = false;
       state = GO_TO;
-
+     }
     break;
   case GO_TO:
     sprintf(strState,"GO_TO");
