@@ -1,14 +1,15 @@
 /* 
  * GRO 302 - Conception d'un robot mobile
- * Code de démarrage
- * Auteurs: Jean-Samuel Lauzon     
- * date: 1 mai 2019
+ * Code de démarrage Template
+ * Auteurs: Nick à place de Charles 
+ * date: Juin 2022 c
 */
 
 /*------------------------------ Librairies ---------------------------------*/
+#include <ArduinoJson.h> // librairie de syntaxe JSON
+#include <SPI.h> // librairie Communication SPI
 #include <LibS3GRO.h>
-#include <ArduinoJson.h>
-#include <libExample.h> // Vos propres librairies
+
 /*------------------------------ Constantes ---------------------------------*/
 
 #define BAUD            115200      // Frequence de transmission serielle
@@ -17,67 +18,84 @@
 #define MAGPIN          32          // Port numerique pour electroaimant
 #define POTPIN          A5          // Port analogique pour le potentiometre
 
-#define PASPARTOUR      64          // Nombre de pas par tour du moteur
-#define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
-
 #define MOTOR_PIN_PWM   5
 #define MOTOR_PIN_DIR   30
+
+#define ENCODER_SLAVE_PIN  34
+#define ENCODER_FLAG_PIN  A14
+
+#define PASPARTOUR 64
+#define RAPPORTVITESSE 19
+#define RAYONROUE 0.065
+
+#define POS_CIBLE 0.4
+#define POS_DROP 0.6
+
+#define PIN_LIMITSWITCH 10
+#define PIN_SAPIN 9
+#define RANGE_VITESSE_ANG_MAX  0.008
+#define RANGE_VITESSE_ANG_MIN -0.008
+
+
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
 MegaServo servo_;                   // objet servomoteur
 VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
-PID pid_;                           // objet PID
-MotorControl moteur;
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
-volatile bool shouldPulse_ = false; // drapeau pour effectuer un pulse
-volatile bool isInPulse_ = false;   // drapeau pour effectuer un pulse
 
 SoftTimer timerSendMsg_;            // chronometre d'envoie de messages
 SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
 
 uint16_t pulseTime_ = 0;            // temps dun pulse en ms
-float pulsePWM_ = 0;                // Amplitude de la tension au moteur [-1,1]
-float cptr = 0;
-double cmd = 0;
+float PWM_des_ = 0;                 // PWM desire pour les moteurs
+float comsommation = AX_.getVoltage() * AX_.getCurrent() * millis(); //consommation = Power* temps
+
 
 float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
+MotorControl moteur;
+LS7366Counter encoder_; 
+
+float potValue = 0;
+float lastPotValue = 0;
+float posValue = 0;
+float vitesseAng = 0;
 
 typedef enum state_e {
 INITIALISATION,
 CALIBRATION,
 PRISE_SAPIN,
-OSCILLATION,
 GO_TO,
+DECELERATION,
+STABILISATION,
 DROP,
 RETOUR
 } state_t;
 
  state_t state;
+
+float cmdVitesse = -0.10;
+unsigned long lastTimeMili = 0;
+
+
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
-void startPulse();
-void endPulse();
 void sendMsg(); 
 void readMsg();
 void serialEvent();
-
-// Fonctions pour le PID
-double PIDmeasurement();
-void PIDcommand(double cmd);
-void PIDgoalReached();
+void activePrehenseur();
+void deactivePrehenseur();
 
 /*---------------------------- fonctions "Main" -----------------------------*/
 
 void setup() {
-  pinMode(MAGPIN,OUTPUT);
   Serial.begin(BAUD);               // initialisation de la communication serielle
   AX_.init();                       // initialisation de la carte ArduinoX 
   imu_.init();                      // initialisation de la centrale inertielle
@@ -85,87 +103,82 @@ void setup() {
   // attache de l'interruption pour encodeur vex
   attachInterrupt(vexEncoder_.getPinInt(), []{vexEncoder_.isr();}, FALLING);
   
-  //moteur.init(AX_,MOTEUR1);
-
   // Chronometre envoie message
   timerSendMsg_.setDelay(UPDATE_PERIODE);
   timerSendMsg_.setCallback(timerCallback);
   timerSendMsg_.enable();
-
-  // Chronometre duration pulse
-  timerPulse_.setCallback(endPulse);
   
-  // Initialisation du PID
-  pid_.setGains(0.25,0.1 ,0);
-  // Attache des fonctions de retour
-  pid_.setMeasurementFunc(PIDmeasurement);
-  pid_.setCommandFunc(PIDcommand);
-  pid_.setAtGoalFunc(PIDgoalReached);
-  pid_.setEpsilon(0.001);
-  pid_.setPeriod(200);
-
   state = INITIALISATION;
   moteur.init(MOTOR_PIN_PWM,MOTOR_PIN_DIR);
-  digitalWrite(MAGPIN, HIGH);
-}
+  encoder_.init(ENCODER_SLAVE_PIN, ENCODER_FLAG_PIN);
 
+
+
+  delay(3000);
+}
+  
 /* Boucle principale (infinie)*/
 void loop() {
-
- while (1)
-    {
-      
-      cptr += 0.1;
-      if (cptr > 2*PI)
-      {
-        cptr = 0;
-      }
-      cmd = sin(cptr);
-      moteur.setSpeed(cmd);
-      delay(20);
-    }
-
+  //Serial.println(analogRead(POTPIN));
   switch (state)
   {
   case INITIALISATION :
-   
-    
+    state = CALIBRATION;
    /* if ()
     {
+      cmdVitesse = -0.25;
       state = CALIBRATION;
     } */
     break;
   case CALIBRATION :
-
-    /*if (<3)
+    moteur.setSpeed(cmdVitesse);
+    if ( digitalRead(PIN_LIMITSWITCH) == HIGH )
     {
+      activePrehenseur();
+      cmdVitesse = 0;
       state = PRISE_SAPIN;
-    }*/
+    }
     break;
   case PRISE_SAPIN :
-
-    /*if (<3)
-    {
-      state = OSCILLATION;
-    }*/
-    break;
-  case OSCILLATION :
-
-
-   /* if (<3)
-    {
-      state = GO_TO;
-    }*/
+    moteur.setSpeed(cmdVitesse);
+    encoder_.reset();
+    posValue = 0;
+    if ( digitalRead(PIN_SAPIN) )
+    state = GO_TO;
+    
     break;
     case GO_TO :
+    moteur.setSpeed(1);
+    if ( (posValue) >= POS_CIBLE )
+    {
+      state = DECELERATION;
+    }   
+    break;
+    case DECELERATION :
+    cmdVitesse -= 0.01;
+    moteur.setSpeed(cmdVitesse);
+    if ( (posValue) >= POS_DROP )
+    {
+      state = STABILISATION;
+    }   
+    break;
+    case STABILISATION :
+    vitesseAng = (potValue-lastPotValue)/((millis()-lastTimeMili)/1000);
 
-    /*if (<3)
+    lastPotValue = potValue;
+    lastTimeMili = millis(); 
+
+    cmdVitesse = potValue/85;
+    moteur.setSpeed(cmdVitesse);
+    if (vitesseAng <= RANGE_VITESSE_ANG_MAX && vitesseAng >= RANGE_VITESSE_ANG_MIN) // doit avoir une position aussi!!
     {
       state = DROP;
-    }*/
+      cmdVitesse = 0;
+      moteur.setSpeed(cmdVitesse);
+    }
     break;
   case DROP :
-
+    deactivePrehenseur();
    /*if (<3)
     {
       state = RETOUR;
@@ -179,27 +192,31 @@ void loop() {
     }*/
     break;
 
-  default:
+   /* default:
     state = INITIALISATION;
-    break;
+    break;*/
   }
-
   if(shouldRead_){
     readMsg();
   }
   if(shouldSend_){
     sendMsg();
   }
-  if(shouldPulse_){
-    startPulse();
-  }
+  
 
   // mise a jour des chronometres
   timerSendMsg_.update();
   timerPulse_.update();
-  
-  // mise à jour du PID
-  pid_.run();
+
+  double deltaP = -1*((double)(AX_.readResetEncoder(0) * 2 * PI * RAYONROUE) / (double)(PASPARTOUR * RAPPORTVITESSE));
+  posValue += deltaP;
+
+  potValue = map(analogRead(POTPIN), 170, 850, -85, 85);
+
+  Serial.print("CMD: ");
+  Serial.println(cmdVitesse);
+
+
 }
 
 /*---------------------------Definition de fonctions ------------------------*/
@@ -208,24 +225,6 @@ void serialEvent(){shouldRead_ = true;}
 
 void timerCallback(){shouldSend_ = true;}
 
-void startPulse(){
-  /* Demarrage d'un pulse */
-  timerPulse_.setDelay(pulseTime_);
-  timerPulse_.enable();
-  timerPulse_.setRepetition(1);
-  AX_.setMotorPWM(0, pulsePWM_);
-  AX_.setMotorPWM(1, pulsePWM_);
-  shouldPulse_ = false;
-  isInPulse_ = true;
-}
-
-void endPulse(){
-  /* Rappel du chronometre */
-  AX_.setMotorPWM(0,0);
-  AX_.setMotorPWM(1,0);
-  timerPulse_.disable();
-  isInPulse_ = false;
-}
 
 void sendMsg(){
   /* Envoit du message Json sur le port seriel */
@@ -233,29 +232,22 @@ void sendMsg(){
   // Elements du message
 
   doc["time"] = millis();
-  doc["potVex"] = analogRead(POTPIN);
-  doc["encVex"] = vexEncoder_.getCount();
-  doc["goal"] = pid_.getGoal();
-  doc["measurements"] = PIDmeasurement();
+  doc["potVex"] = potValue;
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent(); 
-  doc["pulsePWM"] = pulsePWM_;
-  doc["pulseTime"] = pulseTime_;
-  doc["inPulse"] = isInPulse_;
-  doc["accelX"] = imu_.getAccelX();
-  doc["accelY"] = imu_.getAccelY();
-  doc["accelZ"] = imu_.getAccelZ();
-  doc["gyroX"] = imu_.getGyroX();
-  doc["gyroY"] = imu_.getGyroY();
-  doc["gyroZ"] = imu_.getGyroZ();
-  doc["isGoal"] = pid_.isAtGoal();
-  doc["actualTime"] = pid_.getActualDt();
+
+  //doc["vitesse"] = deltaP;
+  doc["position"] = posValue;
+  doc["cmdVitesse"] =cmdVitesse;
+  //doc["Consommation"] = consommation;
+
+
 
   // Serialisation
   serializeJson(doc, Serial);
   // Envoit
-  Serial.println();
-  shouldSend_ = false;
+  Serial.println("test");
+  shouldSend_ = true;
 }
 
 void readMsg(){
@@ -275,38 +267,39 @@ void readMsg(){
   }
   
   // Analyse des éléments du message message
-  parse_msg = doc["pulsePWM"];
+  parse_msg = doc["PWM_des"];
   if(!parse_msg.isNull()){
-     pulsePWM_ = doc["pulsePWM"].as<float>();
+     PWM_des_ = doc["pulse_des"].as<float>();
   }
 
-  parse_msg = doc["pulseTime"];
+  parse_msg = doc["voltage"];
   if(!parse_msg.isNull()){
-     pulseTime_ = doc["pulseTime"].as<float>();
+     AX_.getVoltage();
   }
 
-  parse_msg = doc["pulse"];
+  parse_msg = doc["current"];
   if(!parse_msg.isNull()){
-     shouldPulse_ = doc["pulse"];
+     AX_.getCurrent();
   }
-  parse_msg = doc["setGoal"];
+
+  parse_msg = doc["position"];
   if(!parse_msg.isNull()){
-    pid_.disable();
-    pid_.setGains(doc["setGoal"][0], doc["setGoal"][1], doc["setGoal"][2]);
-    pid_.setEpsilon(doc["setGoal"][3]);
-    pid_.setGoal(doc["setGoal"][4]);
-    pid_.enable();
+     posValue = doc["position"].as<float>();
   }
+
+  parse_msg = doc["cmdVitesse"];
+  if(!parse_msg.isNull()){
+     cmdVitesse = doc["cmdVitesse"].as<float>();
+  }
+
 }
 
+void activePrehenseur()
+{
+  digitalWrite(MAGPIN, HIGH);
+}
 
-// Fonctions pour le PID
-double PIDmeasurement(){
-  // To do
-}
-void PIDcommand(double cmd){
-  // To do
-}
-void PIDgoalReached(){
-  // To do
+void deactivePrehenseur()
+{
+  digitalWrite(MAGPIN, LOW);
 }
