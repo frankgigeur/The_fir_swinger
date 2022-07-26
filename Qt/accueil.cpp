@@ -53,6 +53,7 @@ void Accueil::on_cbConnect_activated(int index)
 void Accueil::jsonReceived(QJsonObject json)
 {
     connected();
+    //qDebug() << json["position"].toDouble();
     double power = json["current"].toDouble() * json["voltage"].toDouble();
     long actualTime = json["time"].toDouble();
     if(prvTime > 0)
@@ -120,7 +121,7 @@ void Accueil::connected()
         QTime tempTime(0,0,0);
         int runningTime = QTime::currentTime().msecsSinceStartOfDay() - startTime.msecsSinceStartOfDay();
 
-        if(runningTime >= 10000)
+        if(runningTime >= 60000)
             actionStop();
 
         elapseTime = tempTime.addMSecs(runningTime);
