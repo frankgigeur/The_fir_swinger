@@ -26,10 +26,10 @@
 
 #define PASPARTOUR 64
 #define RAPPORTVITESSE 19
-#define RAYONROUE (0.1338 / 2)
+#define RAYONROUE (0.1048 / 2)
 
-#define POS_CIBLE 0.3
-#define POS_DROP 0.5
+#define POS_CIBLE 0.65
+#define POS_CIBLE_RETOUR 0.30
 
 #define PIN_LIMITSWITCH 10
 #define PIN_SAPIN 9
@@ -59,10 +59,10 @@ float Mxyz[3]; // tableau pour magnetometre
 
 MotorControl moteur;
 
-float potValue = 0;
-float lastPotValue = 0;
-float posValue = 0;
-float vitesseAng = 0;
+static float potValue = 0;
+static float lastPotValue = 0;
+static float posValue = 0;
+static float vitesseAng = 0;
 
 typedef enum state_e
 {
@@ -73,17 +73,21 @@ typedef enum state_e
   DECELERATION,
   STABILISATION,
   DROP,
-  RETOUR
+  RETOUR,
+  DECELERATION_RETOUR
 } state_t;
 
 state_t state;
 
 float cmdVitesse = -0.25;
-unsigned long lastTimeMili = 0;
+unsigned long timerDeceleration = 0;
+unsigned long timerStabilisation = 0;
+
 bool calibrationOn = false;
 bool run = false;
 char strState[50];
-int enccooooooooo = 0;
+int totalEnco = 0;
+int flagTimer = 0;
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
@@ -138,17 +142,12 @@ void loop()
     run = false;
     calibrationOn = false;
     state = CALIBRATION;
-    /* if ()
-     {
-       cmdVitesse = -0.25;
-       state = CALIBRATION;
-     } */
     break;
   case CALIBRATION:
     sprintf(strState, "CALIBRATION");
     if (calibrationOn)
     {
-      cmdVitesse = -0.15;
+      cmdVitesse = -0.12;
       moteur.setSpeed(cmdVitesse);
       if (digitalRead(PIN_LIMITSWITCH) == HIGH)
       {
@@ -158,7 +157,7 @@ void loop()
         delay(200);
         AX_.resetEncoder(0);
         posValue = 0;
-        enccooooooooo = 0;
+        totalEnco = 0;
         state = PRISE_SAPIN;
       }
     }
@@ -175,37 +174,60 @@ void loop()
     break;
   case GO_TO:
     sprintf(strState, "GO_TO");
-    moteur.setSpeed(1);
+    if (flagTimer == 0)
+    {
+      moteur.setSpeed(1);
+    }
+    else if(flagTimer > 200 && flagTimer < 400)
+    {
+       moteur.setSpeed(-0.5);
+    }
+    else
+      moteur.setSpeed(1);
+    flagTimer ++;
+    
+    
     if ((posValue) >= POS_CIBLE)
     {
+      cmdVitesse = -0.1;
+      moteur.setSpeed(cmdVitesse);
+      timerDeceleration = millis();
+      flagTimer = 0;
       state = DECELERATION;
     }
     break;
   case DECELERATION:
     sprintf(strState, "DECELERATION");
-    cmdVitesse = 0.3;
+    cmdVitesse = 0;
     moteur.setSpeed(cmdVitesse);
-    if ((posValue) >= POS_DROP)
+    if (millis()-timerDeceleration > 1000)
     {
       state = STABILISATION;
+      timerStabilisation = millis();
     }
     break;
   case STABILISATION:
     sprintf(strState, "STABILISATION");
-
-
-    cmdVitesse = potValue / 85;
+    cmdVitesse = potValue / 100;
     moteur.setSpeed(cmdVitesse);
-    if (vitesseAng <= RANGE_VITESSE_ANG_MAX && vitesseAng >= RANGE_VITESSE_ANG_MIN) // doit avoir une position aussi!! non
+    if (potValue <= 6 && potValue >= -6) 
     {
-      state = DROP;
-      cmdVitesse = 0;
-      moteur.setSpeed(cmdVitesse);
+      if (millis()-timerStabilisation > 800)
+      {
+        state = DROP;
+        cmdVitesse = 0;
+        moteur.setSpeed(cmdVitesse);
+      }
+    }
+    else
+    {
+      timerStabilisation = millis();
     }
     break;
   case DROP:
     sprintf(strState, "DROP");
     deactivePrehenseur();
+    state = RETOUR;
     /*if (<3)
      {
        state = RETOUR;
@@ -213,10 +235,25 @@ void loop()
     break;
   case RETOUR:
     sprintf(strState, "RETOUR");
-    /*if (<3)
+    cmdVitesse = -1;
+    moteur.setSpeed(cmdVitesse);
+    if (posValue < POS_CIBLE_RETOUR)
     {
-      state = INITIAISATION;
-    }*/
+    cmdVitesse = -0.15;
+    moteur.setSpeed(cmdVitesse);
+    state = DECELERATION_RETOUR;
+    }
+    break;
+    case DECELERATION_RETOUR:
+    sprintf(strState, "DEC_RETOUR");
+    if (digitalRead(PIN_LIMITSWITCH) == HIGH)
+    {
+    cmdVitesse = 0;
+    moteur.setSpeed(cmdVitesse);
+    activePrehenseur();
+    state = PRISE_SAPIN;
+    posValue = 0;
+    }
     break;
 
     /* default:
@@ -236,18 +273,14 @@ void loop()
   timerSendMsg_.update();
   timerPulse_.update();
   int encod = AX_.readEncoder(0);
-  double deltaP = ((double)(encod * 2 * PI * RAYONROUE) / (double)(RAPPORTVITESSE * PASPARTOUR));
-  enccooooooooo += encod;
   AX_.resetEncoder(0);
+  double deltaP = ((double)(encod * 2 * PI * RAYONROUE) / (double)(RAPPORTVITESSE * PASPARTOUR));
+  totalEnco += encod;
   posValue += deltaP;
-
   potValue = map(analogRead(POTPIN), 170, 850, -850, 850);
   potValue /= 10;
-
-  float dtVitAng = millis() - lastTimeMili ;
-  vitesseAng = (potValue - lastPotValue) / dtVitAng;
   lastPotValue = potValue;
-  lastTimeMili = millis();
+
   /*
   Serial.print("CMD: ");
   Serial.println(cmdVitesse);
@@ -275,7 +308,7 @@ void sendMsg()
   doc["position"] = posValue;
   doc["cmdVitesse"] = cmdVitesse;
   doc["state"] = strState;
-  doc["encodeur"] = enccooooooooo;
+  doc["encodeur"] = totalEnco;
   doc["vitesseang"] = vitesseAng;
   doc["potVex"] = potValue;
 

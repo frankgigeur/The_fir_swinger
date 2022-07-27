@@ -71,16 +71,7 @@ void Accueil::jsonReceived(QJsonObject json)
     else if(json["state"].toString() == "PRISE_SAPIN")
     {
         ui->pbCalibrer->setEnabled(false);
-
-        if(!run)
-        {
-            ui->pbStart->setEnabled(true);
-        }
-        else
-        {
-            ui->pbStart->setEnabled(false);
-        }
-
+        ui->pbStart->setEnabled(true);
         ui->pbStop->setEnabled(true);
     }
     else
@@ -121,7 +112,7 @@ void Accueil::connected()
         QTime tempTime(0,0,0);
         int runningTime = QTime::currentTime().msecsSinceStartOfDay() - startTime.msecsSinceStartOfDay();
 
-        if(runningTime >= 60000)
+        if(runningTime >= 600000)
             actionStop();
 
         elapseTime = tempTime.addMSecs(runningTime);
