@@ -74,7 +74,7 @@ typedef enum state_e
   STABILISATION,
   DROP,
   RETOUR,
-  DECELERATION_RETOUR
+  DECELERATION_RETOUR,
 } state_t;
 
 state_t state;
@@ -97,6 +97,9 @@ void readMsg();
 void serialEvent();
 void activePrehenseur();
 void deactivePrehenseur();
+void resetAll();
+void resetMotor();
+void similiPID();
 
 /*---------------------------- fonctions "Main" -----------------------------*/
 
@@ -121,6 +124,7 @@ void setup()
   moteur.init(MOTOR_PIN_PWM, MOTOR_PIN_DIR);
 
   pinMode(PIN_LIMITSWITCH, INPUT);
+  pinMode(PIN_SAPIN,INPUT);
 
   delay(3000);
 }
@@ -132,19 +136,16 @@ void loop()
   switch (state)
   {
   case INITIALISATION:
+
     sprintf(strState, "INITIALISATION");
-    moteur.setSpeed(0);
-    deactivePrehenseur();
-    cmdVitesse = 0;
-    delay(100); // Important!! S'assure que la roue est arrêtée avant de reset
-    posValue = 0;
-    AX_.resetEncoder(0);
-    run = false;
-    calibrationOn = false;
+    resetAll();
     state = CALIBRATION;
+
     break;
   case CALIBRATION:
+
     sprintf(strState, "CALIBRATION");
+
     if (calibrationOn)
     {
       cmdVitesse = -0.12;
@@ -152,41 +153,37 @@ void loop()
       if (digitalRead(PIN_LIMITSWITCH) == HIGH)
       {
         activePrehenseur();
-        cmdVitesse = 0;
-        moteur.setSpeed(cmdVitesse);
-        delay(200);
-        AX_.resetEncoder(0);
-        posValue = 0;
-        totalEnco = 0;
+        resetMotor();
         state = PRISE_SAPIN;
       }
     }
+
     break;
   case PRISE_SAPIN:
-    sprintf(strState, "PRISE_SAPIN");
 
+    sprintf(strState, "PRISE_SAPIN");
     calibrationOn = false;
-    if (run)
+
+    if (run || digitalRead(PIN_SAPIN))
     {
       run = false;
       state = GO_TO;
     }
+
     break;
   case GO_TO:
+
     sprintf(strState, "GO_TO");
-    if (flagTimer == 0)
+
+    if (flagTimer > 400 && flagTimer < 900)
     {
-      moteur.setSpeed(1);
-    }
-    else if(flagTimer > 200 && flagTimer < 400)
-    {
-       moteur.setSpeed(-0.5);
+      moteur.setSpeed(-0.5);
     }
     else
       moteur.setSpeed(1);
-    flagTimer ++;
-    
-    
+
+    flagTimer++;
+
     if ((posValue) >= POS_CIBLE)
     {
       cmdVitesse = -0.1;
@@ -195,25 +192,32 @@ void loop()
       flagTimer = 0;
       state = DECELERATION;
     }
+
     break;
   case DECELERATION:
+
     sprintf(strState, "DECELERATION");
     cmdVitesse = 0;
     moteur.setSpeed(cmdVitesse);
-    if (millis()-timerDeceleration > 1000)
+
+    if (millis() - timerDeceleration > 1000)
     {
       state = STABILISATION;
       timerStabilisation = millis();
     }
+
     break;
   case STABILISATION:
+
     sprintf(strState, "STABILISATION");
     cmdVitesse = potValue / 100;
     moteur.setSpeed(cmdVitesse);
-    if (potValue <= 6 && potValue >= -6) 
-    {
-      if (millis()-timerStabilisation > 800)
+
+    if (potValue <= 10 && potValue >= -10)
+    {      
+      if (millis() - timerStabilisation > 800)
       {
+        deactivePrehenseur();
         state = DROP;
         cmdVitesse = 0;
         moteur.setSpeed(cmdVitesse);
@@ -223,8 +227,10 @@ void loop()
     {
       timerStabilisation = millis();
     }
+
     break;
   case DROP:
+
     sprintf(strState, "DROP");
     deactivePrehenseur();
     state = RETOUR;
@@ -232,34 +238,41 @@ void loop()
      {
        state = RETOUR;
      }*/
+
     break;
   case RETOUR:
+
     sprintf(strState, "RETOUR");
     cmdVitesse = -1;
     moteur.setSpeed(cmdVitesse);
+
     if (posValue < POS_CIBLE_RETOUR)
     {
-    cmdVitesse = -0.15;
-    moteur.setSpeed(cmdVitesse);
-    state = DECELERATION_RETOUR;
+      cmdVitesse = -0.15;
+      moteur.setSpeed(cmdVitesse);
+      state = DECELERATION_RETOUR;
     }
+
     break;
-    case DECELERATION_RETOUR:
+  case DECELERATION_RETOUR:
+
     sprintf(strState, "DEC_RETOUR");
     if (digitalRead(PIN_LIMITSWITCH) == HIGH)
     {
-    cmdVitesse = 0;
-    moteur.setSpeed(cmdVitesse);
-    activePrehenseur();
-    state = PRISE_SAPIN;
-    posValue = 0;
+      cmdVitesse = 0;
+      moteur.setSpeed(cmdVitesse);
+      activePrehenseur();
+      state = PRISE_SAPIN;
+      posValue = 0;
     }
     break;
 
-    /* default:
-     state = INITIALISATION;
-     break;*/
+  default:
+    state = INITIALISATION;
+    break;
   }
+
+  // Fonction de lecture
   if (shouldRead_)
   {
     readMsg();
@@ -272,14 +285,8 @@ void loop()
   // mise a jour des chronometres
   timerSendMsg_.update();
   timerPulse_.update();
-  int encod = AX_.readEncoder(0);
-  AX_.resetEncoder(0);
-  double deltaP = ((double)(encod * 2 * PI * RAYONROUE) / (double)(RAPPORTVITESSE * PASPARTOUR));
-  totalEnco += encod;
-  posValue += deltaP;
-  potValue = map(analogRead(POTPIN), 170, 850, -850, 850);
-  potValue /= 10;
-  lastPotValue = potValue;
+
+  similiPID();
 
   /*
   Serial.print("CMD: ");
@@ -300,7 +307,7 @@ void sendMsg()
   // Elements du message
 
   doc["time"] = millis();
-  
+
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent();
 
@@ -402,3 +409,71 @@ void deactivePrehenseur()
 {
   digitalWrite(MAGPIN, LOW);
 }
+
+void resetAll()
+{
+  moteur.setSpeed(0);
+  deactivePrehenseur();
+  cmdVitesse = 0;
+  delay(100); // Important!! S'assure que la roue est arrêtée avant de reset
+  posValue = 0;
+  AX_.resetEncoder(0);
+  run = false;
+  calibrationOn = false;
+}
+
+void resetMotor()
+{
+  cmdVitesse = 0;
+  moteur.setSpeed(cmdVitesse);
+  delay(200);
+  AX_.resetEncoder(0);
+  posValue = 0;
+  totalEnco = 0;
+}
+
+void similiPID()
+{
+  int encod = AX_.readEncoder(0);
+  AX_.resetEncoder(0);
+  double deltaP = ((double)(encod * 2 * PI * RAYONROUE) / (double)(RAPPORTVITESSE * PASPARTOUR));
+  totalEnco += encod;
+  posValue += deltaP;
+  potValue = map(analogRead(POTPIN), 170, 850, -850, 850);
+  potValue /= 10;
+  lastPotValue = potValue;
+}
+
+/*
+// Appelé par interruption3 tous les DeltaT
+// PID et Encodeur sont des structures globales, PKp, PKi, PKd, Amax et Vmax sont définis statiquement// T est une variable temporelle
+
+void ProfilVitesse() {
+PID.consigne_vitesse_old = PID.consigne_vitesse ; // Sauvegarde de l’ancienne consigne
+PID.erreur_position_old = PID.erreur_position ; // Sauvegarde de l’ancienne erreur
+PID.erreur_position = PID.consigne_position - Encodeur.position ; // Calcul de la nouvelle erreu
+PID.integral_position += PID.erreur_position ; // Recalcul de l’intégrale
+PID.consigne_vitesse = PKp*PID.erreur_position + PKi*PID.integral_position + PKd * (PID.erreur_posi// Écrêtage de la vitesse
+if (PID.consigne_vitesse > Vmax) {
+PID.consigne_vitesse = Vmax ;
+} else if (PID.consigne_vitesse < -Vmax) {
+PID.consigne_vitesse = -Vmax ;
+}
+// Écrêtage de l’accélération
+if ((PID.consigne_vitesse - PID.consigne_vitesse_old) > Amax) {
+PID.consigne_vitesse = PID.consigne_vitesse_old + Amax ;
+} else if ((PID.consigne_vitesse - PID.consigne_vitesse_old) < -Amax) {
+PID.consigne_vitesse = PID.consigne_vitesse_old - Amax ;
+}
+}
+
+/*
+previous_error: = 0
+intégrale: = 0
+boucle: 
+  erreur: = valeur de consigne - valeur_mesurée 
+  intégrale: = intégrale + erreur × dt 
+  dérivée: = (erreur - erreur_précédente) / dt 
+  sortie: = Kp × erreur + Ki × intégrale + Kd × dérivée 
+  previous_error: = erreur attendre (dt) aller à la boucle
+*/

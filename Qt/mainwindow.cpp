@@ -132,6 +132,11 @@ void MainWindow::connectComboBox(QComboBox *cbUsed){
     connect(cbUsed, SIGNAL(activated(QString)), this, SLOT(startSerialCom(QString)));
 }
 
+void MainWindow::disconnectCom()
+{
+    serialCom_->disconnect();
+}
+
 void MainWindow::portCensus(QComboBox *cbUsed){
     // Fonction pour recenser les ports disponibles
     if (cbUsed == nullptr)
@@ -259,5 +264,6 @@ void MainWindow::onPeriodicUpdate(){
     // Fonction SLOT appelee a intervalle definie dans le constructeur
     qDebug().noquote() << "*";
 }
+
 
 

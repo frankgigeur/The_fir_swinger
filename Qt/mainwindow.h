@@ -45,8 +45,10 @@ public:
     void connectComboBox(QComboBox *cbUsed = nullptr);
     QTimer updateTimer_;
 
+
 public slots:
     void sendMessage(QString msg);
+    void disconnectCom();
 
 private slots:
     void receiveFromSerial(QString);

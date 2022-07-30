@@ -23,7 +23,7 @@ Accueil::Accueil(QWidget *parent) :
     ui->pbCalibrer->setEnabled(false);
     ui->pbStart->setEnabled(false);
     ui->pbStop->setEnabled(false);
-    ui->pbTest->setEnabled(false);
+    ui->pbDisconnect->setEnabled(false);
 
 
     lostConnectionTimer = new QTimer(this);
@@ -54,12 +54,18 @@ void Accueil::jsonReceived(QJsonObject json)
 {
     connected();
     //qDebug() << json["position"].toDouble();
-    double power = json["current"].toDouble() * json["voltage"].toDouble();
-    long actualTime = json["time"].toDouble();
-    if(prvTime > 0)
-        sumPower += (power * actualTime) - (power * prvTime);
-    prvTime = actualTime;
-    ui->lbWh->setText(QString::number(sumPower/3600));
+
+    if(run)
+    {
+        double power = json["current"].toDouble() * json["voltage"].toDouble();
+        long actualTime = json["time"].toDouble();
+        if(prvTime > 0)
+            sumPower += power;
+        prvTime = actualTime;
+
+        ui->lbJ->setText(QString::number(sumPower));
+        ui->lbWh->setText(QString::number(sumPower/3600));
+    }
 
 
     if(json["state"].toString() == "CALIBRATION")
@@ -91,6 +97,7 @@ void Accueil::connectButtons()
     connect(ui->pbStart,&QPushButton::clicked,this,&Accueil::actionStart);
     connect(ui->pbStop,&QPushButton::clicked,this,&Accueil::actionStop);
     connect(ui->pbCalibrer,&QPushButton::clicked,this,[this](){envoyerMsg("calibrer",true);});
+    connect(ui->pbDisconnect,&QPushButton::clicked,mw,&MainWindow::disconnectCom);
 }
 
 void Accueil::connectTimers()
@@ -101,6 +108,8 @@ void Accueil::connectTimers()
 void Accueil::connected()
 {
     // Status Button timer
+    ui->pbDisconnect->setEnabled(true);
+
     lostConnectionTimer->stop();
     lostConnectionTimer->start(500);
     ui->pbStatus->setStyleSheet("background-color: rgb(50,164,49);");
@@ -112,7 +121,7 @@ void Accueil::connected()
         QTime tempTime(0,0,0);
         int runningTime = QTime::currentTime().msecsSinceStartOfDay() - startTime.msecsSinceStartOfDay();
 
-        if(runningTime >= 600000)
+        if(runningTime >= 60000)
             actionStop();
 
         elapseTime = tempTime.addMSecs(runningTime);
@@ -126,6 +135,7 @@ void Accueil::connected()
 void Accueil::notConnected()
 {
     lostConnectionTimer->stop();
+    ui->pbDisconnect->setEnabled(false);
     ui->pbStatus->setStyleSheet("background-color: rgb(204,2,2);");
 }
 
