@@ -257,12 +257,12 @@ void MainWindow::stopRecording(){
 void MainWindow::onMessageReceived(QString msg){
     // Fonction appelee lors de reception de message
     // Decommenter la ligne suivante pour deverminage
-    qDebug().noquote() << "Message du Arduino: " << msg;
+    //qDebug().noquote() << "Message du Arduino: " << msg;
 }
 
 void MainWindow::onPeriodicUpdate(){
     // Fonction SLOT appelee a intervalle definie dans le constructeur
-    qDebug().noquote() << "*";
+    //qDebug().noquote() << "*";
 }
 
 
