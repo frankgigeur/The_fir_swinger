@@ -59,12 +59,13 @@ void Accueil::jsonReceived(QJsonObject json)
     {
         double power = json["current"].toDouble() * json["voltage"].toDouble();
         long actualTime = json["time"].toDouble();
-        if(prvTime > 0)
-            sumPower += power;
+
+        sumPower += (power * ((actualTime - prvTime)/1000));
         prvTime = actualTime;
 
         ui->lbJ->setText(QString::number(sumPower));
         ui->lbWh->setText(QString::number(sumPower/3600));
+
     }
 
 

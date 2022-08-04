@@ -213,9 +213,9 @@ void loop()
     cmdVitesse = potValue / 100;
     moteur.setSpeed(cmdVitesse);
 
-    if (potValue <= 10 && potValue >= -10)
+    if (potValue <= 15 && potValue >= -15)
     {      
-      if (millis() - timerStabilisation > 800)
+      if (millis() - timerStabilisation > 300)
       {
         deactivePrehenseur();
         state = DROP;
